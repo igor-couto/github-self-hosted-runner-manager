@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Runner Room</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231e4735'/%3E%3Cpath d='m11 9 10 7-10 7z' fill='%23ceedd6'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="/"><span class="mark" aria-hidden="true">▶</span>runner room<span class="brand-dot">.</span></a><span class="local-tag">LOCAL RUNNER MONITOR</span></header>
+  <main>
+    <div id="demo" class="notice demo" hidden>DEMO MODE <span>Sample runners for preview. These are not your server’s runners.</span></div>
+    <div class="page-heading"><div><div class="eyebrow">YOUR HOME SERVER, AT A GLANCE</div><h1>A room for your runners.</h1><p class="intro">A simple view of what’s running. Right here on your network.</p></div><button id="refresh" type="button"><span aria-hidden="true">↻</span> Refresh</button></div>
+    <div id="message" class="notice" role="status" hidden></div>
+    <section class="summary" aria-label="Runner counts">
+      <article><span>Total runners</span><strong id="total">—</strong><small>Discovered in your folder</small></article>
+      <article><span><i class="dot on"></i> On</span><strong id="on">—</strong><small>Runner process is running</small></article>
+      <article><span><i class="dot off"></i> Off</span><strong id="off">—</strong><small>No runner process found</small></article>
+    </section>
+    <section class="runner-panel" aria-labelledby="runners-title">
+      <div class="panel-header"><div><h2 id="runners-title">Your runners <span id="count" class="count">0</span></h2><p id="host">Connecting to your server…</p></div><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" aria-label="Search runners" placeholder="Find a runner…" autocomplete="off"></label></div>
+      <div class="table-wrap"><table><thead><tr><th>Runner</th><th>Folder</th><th>Status</th></tr></thead><tbody id="runners"></tbody></table></div>
+      <div id="empty" class="empty" hidden><span aria-hidden="true">⌁</span><h3 id="empty-title">No runners yet</h3><p id="empty-description"></p></div>
+      <div class="panel-footer"><span class="folder-label">Watching <code id="root">—</code></span><span id="updated" aria-live="polite">Waiting for first scan</span></div>
+    </section>
+    <footer><span><i class="dot on" id="connection-dot"></i><span id="connection">Updates every 5 seconds</span></span><p>Local process status only. “On” does not confirm a connection to GitHub.</p></footer>
+  </main>
+</body>
+</html>

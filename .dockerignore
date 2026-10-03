@@ -1,0 +1,7 @@
+**/bin
+**/obj
+publish
+.git
+.vs
+artifacts
+tests
