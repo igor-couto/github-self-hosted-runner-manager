@@ -1,0 +1,61 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rid: [linux-x64, linux-arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - run: bash -n install.sh && shellcheck install.sh
+      - name: Publish with bundled .NET runtime
+        run: >-
+          dotnet publish RunnerRoom.csproj -c Release -r ${{ matrix.rid }}
+          --self-contained true -p:InvariantGlobalization=true -o package
+      - name: Package and checksum
+        env:
+          RID: ${{ matrix.rid }}
+        run: |
+          chmod +x package/RunnerRoom
+          tar -czf "runner-room-$RID.tar.gz" -C package .
+          sha256sum "runner-room-$RID.tar.gz" > "runner-room-$RID.tar.gz.sha256"
+      - name: Verify installation before releasing
+        if: matrix.rid == 'linux-x64'
+        run: |
+          mkdir -p artifacts
+          cp -a package artifacts/package-linux-x64
+          docker build -f tests/installer.Dockerfile -t runner-room-installer-test .
+          docker run --rm runner-room-installer-test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.rid }}
+          path: runner-room-${{ matrix.rid }}.tar.gz*
+  release:
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: Create a complete release before publishing it
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --draft --verify-tag --title "Runner Room $TAG" --generate-notes
+          fi
+          gh release upload "$TAG" release-assets/* install.sh --clobber
+          gh release edit "$TAG" --draft=false --latest

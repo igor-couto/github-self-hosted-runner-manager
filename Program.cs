@@ -1,5 +1,12 @@
 using RunnerRoom;
 
+// The installer checks the bundled runtime before replacing a working installation.
+if (args is ["--check-runtime"])
+{
+    Console.WriteLine($"Runner Room runtime OK ({System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier})");
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton(new RunnerMonitor(builder.Configuration["RunnersRoot"], builder.Configuration.GetValue<bool>("Demo")));
 var app = builder.Build();

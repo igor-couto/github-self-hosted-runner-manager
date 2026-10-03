@@ -1,0 +1,7 @@
+**
+!install.sh
+!tests/
+!tests/**
+!artifacts/
+!artifacts/package-linux-x64/
+!artifacts/package-linux-x64/**

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+output='' url=''
+while (($#)); do
+    case "$1" in
+        --output) output=$2; shift 2 ;;
+        https://github.com/igor-couto/github-self-hosted-runner-manager/*) url=$1; shift ;;
+        *) shift ;;
+    esac
+done
+case "$url" in
+    */releases/latest) printf '%s' 'https://github.com/igor-couto/github-self-hosted-runner-manager/releases/tag/v0.1.0' ;;
+    */runner-room-linux-x64.tar.gz*) cp "/fixture/${url##*/}" "$output" ;;
+    *) exit 2 ;;
+esac

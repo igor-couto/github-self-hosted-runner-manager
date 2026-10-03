@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Test-only service supervisor. Runs the real binary as an unprivileged account;
+# systemd unit syntax is separately verified with systemd-analyze.
+set -euo pipefail
+stop_app() {
+    if [[ -f /tmp/runner-room.pid ]]; then
+        kill "$(cat /tmp/runner-room.pid)" 2>/dev/null || true
+        rm -f /tmp/runner-room.pid
+        sleep 1
+    fi
+}
+start_app() {
+    if [[ -f /tmp/fail-next-start ]]; then rm /tmp/fail-next-start; return 1; fi
+    while IFS='=' read -r key value; do
+        value=${value#\"}; value=${value%\"}
+        export "$key=$value"
+    done </etc/runner-room/runner-room.env
+    cd /opt/runner-room/current
+    runuser -u runner -- ./RunnerRoom 9>&- >/tmp/runner-room.log 2>&1 &
+    echo "$!" >/tmp/runner-room.pid
+}
+case "$1" in
+    daemon-reload) : ;;
+    enable) touch /tmp/runner-room.enabled ;;
+    disable) rm -f /tmp/runner-room.enabled ;;
+    is-enabled) test -f /tmp/runner-room.enabled ;;
+    is-active) test -f /tmp/runner-room.pid && kill -0 "$(cat /tmp/runner-room.pid)" ;;
+    stop) stop_app ;;
+    start) start_app ;;
+    restart) stop_app; start_app ;;
+    *) exit 2 ;;
+esac
