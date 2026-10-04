@@ -10,6 +10,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: bash -n install.sh && shellcheck install.sh
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - run: dotnet run --project tests/RunnerRoom.Tests -c Release
   package:
     needs: validate
     # An unset repository variable keeps all three builds on GitHub's x64 runner.

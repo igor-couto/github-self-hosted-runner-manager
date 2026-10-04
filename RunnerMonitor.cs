@@ -4,12 +4,13 @@ namespace RunnerRoom;
 
 public sealed record RunnerInfo(string Name, string Folder, string Status, int? Pid);
 public sealed record RunnerSnapshot(string Host, string? Root, DateTimeOffset CheckedAt,
-    bool Demo, string? Error, string? Warning, IReadOnlyList<RunnerInfo> Runners);
+    bool Demo, string? Error, string? Warning, IReadOnlyList<RunnerInfo> Runners, SystemSnapshot? System = null);
 
 // Reads local metadata and process identities. Never executes runner commands.
 public sealed class RunnerMonitor(string? configuredRoot, bool demo)
 {
     private readonly object gate = new();
+    private readonly SystemMonitor systemMonitor = new();
     private RunnerSnapshot? cached;
 
     public RunnerSnapshot GetSnapshot()
@@ -17,7 +18,8 @@ public sealed class RunnerMonitor(string? configuredRoot, bool demo)
         lock (gate)
         {
             if (cached is not null && DateTimeOffset.UtcNow - cached.CheckedAt < TimeSpan.FromSeconds(2)) return cached;
-            return cached = Scan();
+            var snapshot = Scan();
+            return cached = snapshot with { System = systemMonitor.Read(snapshot.Root, demo) };
         }
     }
 

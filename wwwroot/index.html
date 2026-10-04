@@ -59,7 +59,7 @@
           </div>
           <div class="table-wrap"><table><thead><tr><th scope="col">Runner</th><th scope="col">Directory</th><th scope="col" class="pid-column">PID</th><th scope="col">Status</th></tr></thead><tbody id="runners"></tbody></table></div>
           <div id="empty" class="empty" hidden><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg><h3 id="empty-title">No runners yet</h3><p id="empty-description"></p></div>
-          <div class="table-footer"><span id="visible-count">Waiting for runners…</span><span>Refreshes every 5 seconds</span></div>
+          <div class="table-footer"><span id="visible-count">Waiting for runners…</span><span>Refreshes every 15 seconds</span></div>
         </section>
         <p class="status-note"><svg class="icon" aria-hidden="true"><use href="#icon-shield"/></svg>“On” means a local runner process is running. It does not confirm a connection to GitHub.</p>
       </div>
@@ -77,7 +77,32 @@
         </section>
         <section class="panel server-panel" aria-labelledby="server-title">
           <div class="panel-heading"><h2 id="server-title">Server details</h2><svg class="icon" aria-hidden="true"><use href="#icon-server"/></svg></div>
-          <div class="server-body"><span class="field-label">HOSTNAME</span><h3 id="host">Connecting…</h3><dl><div class="directory-field"><dt>WATCHED DIRECTORY</dt><dd><code id="root">—</code></dd></div><div><dt>Refresh interval</dt><dd>5 seconds</dd></div><div><dt>Last scan</dt><dd id="updated">—</dd></div><div><dt>Status source</dt><dd>Local processes</dd></div></dl></div>
+          <div class="server-body">
+            <span class="field-label">HOSTNAME</span><h3 id="host">Connecting…</h3>
+            <dl><div class="directory-field"><dt>WATCHED DIRECTORY</dt><dd><code id="root">—</code></dd></div></dl>
+            <section class="system-info" aria-labelledby="system-title">
+              <h4 id="system-title">SYSTEM RESOURCES</h4>
+              <div class="resource">
+                <div class="resource-heading"><span>CPU</span><strong id="cpu-value">—</strong></div>
+                <progress id="cpu-meter" max="100" value="0" aria-label="CPU usage" hidden></progress>
+                <p id="cpu-detail">Waiting for a reading…</p>
+              </div>
+              <div class="resource">
+                <div class="resource-heading"><span>RAM</span><strong id="memory-value">—</strong></div>
+                <progress id="memory-meter" max="100" value="0" aria-label="RAM usage" hidden></progress>
+                <p id="memory-detail">Waiting for a reading…</p>
+              </div>
+              <div class="resource">
+                <div class="resource-heading"><span>Disk</span><strong id="disk-value">—</strong></div>
+                <progress id="disk-meter" max="100" value="0" aria-label="Disk usage" hidden></progress>
+                <p id="disk-detail">Waiting for a reading…</p>
+                <p id="disk-available"></p>
+                <span class="resource-note">Filesystem containing the watched directory</span>
+              </div>
+              <dl><div><dt>System uptime</dt><dd id="system-uptime">—</dd></div></dl>
+            </section>
+            <dl class="monitor-details"><div><dt>Refresh interval</dt><dd>15 seconds</dd></div><div><dt>Last scan</dt><dd id="updated">—</dd></div><div><dt>Status source</dt><dd>Local processes</dd></div></dl>
+          </div>
           <div class="server-footer"><svg class="icon" aria-hidden="true"><use href="#icon-shield"/></svg>Read-only monitoring</div>
         </section>
       </aside>

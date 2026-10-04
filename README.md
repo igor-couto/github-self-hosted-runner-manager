@@ -1,8 +1,10 @@
 # Runner Room
 
-A small dashboard for GitHub Actions runners on your Linux server. It shows which runners are **On**, **Off**, or **Unknown**, and refreshes every five seconds.
+A small dashboard for GitHub Actions runners on your Linux server. It shows which runners are **On**, **Off**, or **Unknown**, and refreshes every 15 seconds.
 
 Dark theme is the default. Use the theme button in the header to switch to light; your choice is saved in your browser.
+
+Server details includes CPU usage, logical core count, architecture, RAM usage, disk space, and system uptime. These refresh with the runner status.
 
 C# / ASP.NET Core backend. Plain HTML, CSS, and JavaScript frontend.
 
@@ -85,6 +87,19 @@ This prototype has no login and is intended for a trusted LAN. If your firewall 
 
 On describes a local process, not a confirmed connection to GitHub. Discovery uses runner installations in the configured folder's immediate children; symbolic-link child folders are skipped. If it finds no child runners, it checks the configured folder itself as a single installation. Leftover `.runner` metadata in a parent folder therefore cannot hide its child runners. It reads runner names from `.runner` and process identities from `/proc`, never credentials, job workspaces, or diagnostic logs. It cannot start or stop runners.
 
+## System information
+
+The **System resources** section inside Server details shows:
+
+- **CPU:** utilization across logical cores between scans, plus core count and architecture. The first reading says Sampling until another scan is available.
+- **RAM:** total usable memory minus available memory, so reclaimable caches are not counted as used RAM.
+- **Disk:** used, total, and available space on the filesystem containing the watched runner directory, including a separate drive or a symlinked path. This is filesystem usage, not the size of the runner folders. Available space excludes blocks reserved by the filesystem.
+- **System uptime:** time since the Linux system booted.
+
+Memory, CPU, and uptime come from Linux's [system information files](https://docs.kernel.org/filesystems/proc.html); disk capacity comes from .NET's filesystem APIs. Readings use binary units (GiB, MiB). Missing or inaccessible measurements show Unavailable and do not prevent runner monitoring. No extra permissions or tools are required by the installer.
+
+Install directly on the Linux runner host for host readings. In a development container, readings reflect the Linux environment visible to that container, not container resource limits or the Windows/macOS host. Demo mode uses sample system metrics as well as sample runners.
+
 ## Publishing releases (maintainers only)
 
 The release workflow builds self-contained packages for all three targets and uploads them, their checksums, and `install.sh` to a GitHub Release:
@@ -131,7 +146,7 @@ dotnet run -- --Demo true --urls http://127.0.0.1:8080
 
 Open `http://localhost:8080`. Demo data is explicitly labeled. To inspect real Linux runners, replace `--Demo true` with `--RunnersRoot /path/to/runners`.
 
-Build with `dotnet build`. For a Docker demo:
+Build with `dotnet build`. Check system metric parsing and failure cases with `dotnet run --project tests/RunnerRoom.Tests`. For a Docker demo:
 
 ```bash
 docker build -t runner-room .

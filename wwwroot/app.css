@@ -173,6 +173,21 @@ dd { color: var(--secondary); margin: 0; font-size: 11px; text-align: right; }
 #updated { font-variant-numeric: tabular-nums; }
 .server-footer { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--divider); padding: 13px 21px; color: var(--muted); font-size: 10px; }
 .server-footer .icon { width: 13px; height: 13px; }
+.system-info { border-top: 1px solid var(--divider); padding-top: 20px; }
+.system-info h4 { margin: 0 0 19px; color: var(--muted); font-size: 8px; font-weight: 500; letter-spacing: 1.1px; }
+.resource { margin-bottom: 20px; }
+.resource-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 9px; font-size: 11px; }
+.resource-heading span { color: var(--secondary); }
+.resource-heading strong { font-weight: 600; font-variant-numeric: tabular-nums; }
+.resource progress { display: block; appearance: none; -webkit-appearance: none; width: 100%; height: 5px; border: 0; border-radius: 2px; overflow: hidden; background: var(--track); color: var(--blue); }
+.resource progress::-webkit-progress-bar { background: var(--track); }
+.resource progress::-webkit-progress-value { background: var(--blue); border-radius: 2px; }
+.resource progress::-moz-progress-bar { background: var(--blue); border-radius: 2px; }
+.resource progress.high::-webkit-progress-value { background: var(--warning); }
+.resource progress.high::-moz-progress-bar { background: var(--warning); }
+.resource p { margin: 7px 0 0; font-size: 10px; line-height: 1.5; color: var(--secondary); font-variant-numeric: tabular-nums; }
+.resource-note { display: block; margin-top: 6px; font-size: 9px; line-height: 1.5; color: var(--muted); }
+.monitor-details { margin-top: 20px; padding-top: 3px; border-top: 1px solid var(--divider); }
 .notice { display: flex; align-items: baseline; gap: 12px; margin-bottom: 20px; padding: 12px 16px; background: var(--warning-bg); border: 1px solid var(--warning); border-radius: 4px; color: var(--warning); font-size: 12px; line-height: 1.6; }
 .notice.demo { background: var(--blue-soft); border-color: var(--border); color: var(--blue-text); font-size: 11px; }
 .demo strong { font-size: 9px; letter-spacing: .8px; white-space: nowrap; }

@@ -4,7 +4,52 @@ let snapshot = null;
 let loading = false;
 const labels = { on: "On", off: "Off", unknown: "Unknown" };
 
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes < 0) return "—";
+  const units = ["B", "KiB", "MiB", "GiB", "TiB"];
+  let unit = 0;
+  while (bytes >= 1024 && unit < units.length - 1) { bytes /= 1024; unit++; }
+  return `${bytes.toFixed(unit ? 1 : 0)} ${units[unit]}`;
+}
+
+function setResource(id, percent, detail) {
+  const available = Number.isFinite(percent) && percent >= 0 && percent <= 100;
+  $(`${id}-value`).textContent = available ? `${Math.round(percent)}%` : "—";
+  $(`${id}-meter`).hidden = !available;
+  $(`${id}-meter`).value = available ? percent : 0;
+  $(`${id}-meter`).classList.toggle("high", available && percent >= 90);
+  $(`${id}-detail`).textContent = detail;
+}
+
+function renderSystem(system) {
+  const cores = Number.isInteger(system?.logicalProcessors) && system.logicalProcessors > 0
+    ? `${system.logicalProcessors} logical ${system.logicalProcessors === 1 ? "core" : "cores"}` : null;
+  const cpuDetail = [cores, system?.architecture?.toUpperCase()].filter(Boolean).join(" · ");
+  const cpuAvailable = Number.isFinite(system?.cpuUsagePercent);
+  setResource("cpu", system?.cpuUsagePercent, cpuAvailable ? cpuDetail :
+    (cores ? `Sampling… ${cpuDetail}` : "Unavailable"));
+  for (const id of ["memory", "disk"]) {
+    const usage = system?.[id];
+    const available = usage && Number.isFinite(usage.totalBytes) && usage.totalBytes > 0 &&
+      Number.isFinite(usage.usedBytes) && usage.usedBytes >= 0 && usage.usedBytes <= usage.totalBytes;
+    setResource(id, available ? usage.usedPercent : null, available ?
+      `${formatBytes(usage.usedBytes)} / ${formatBytes(usage.totalBytes)} used` : "Unavailable");
+  }
+  $("disk-available").textContent = Number.isFinite(system?.disk?.availableBytes)
+    ? `${formatBytes(system.disk.availableBytes)} available` : "";
+  const seconds = system?.uptimeSeconds;
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor(seconds / 3600) % 24;
+    const minutes = Math.floor(seconds / 60) % 60;
+    $("system-uptime").textContent = `${days ? `${days}d ` : ""}${hours || days ? `${hours}h ` : ""}${minutes}m`;
+  } else {
+    $("system-uptime").textContent = "Unavailable";
+  }
+}
+
 function render() {
+  renderSystem(snapshot.system);
   const runners = snapshot.runners;
   const onCount = runners.filter(r => r.status === "on").length;
   const offCount = runners.filter(r => r.status === "off").length;
@@ -98,7 +143,7 @@ async function refresh() {
     render();
     $("message").textContent = data.error || data.warning || "";
     $("message").hidden = !$("message").textContent;
-    $("connection").textContent = data.error ? "Folder needs attention" : "Updates every 5 seconds";
+    $("connection").textContent = data.error ? "Folder needs attention" : "Updates every 15 seconds";
     $("connection-dot").className = `dot ${data.error ? "unknown" : "on"}`;
   } catch {
     $("message").textContent = snapshot ? "Could not refresh. Showing the last available status; it may be out of date. Retrying automatically." : "Cannot reach the dashboard. Check that the application is running. Retrying automatically.";
@@ -115,4 +160,4 @@ $("search").addEventListener("input", () => { if (snapshot) render(); });
 $("status-filter").addEventListener("change", () => { if (snapshot) render(); });
 $("refresh").addEventListener("click", refresh);
 refresh();
-setInterval(refresh, 5000);
+setInterval(refresh, 15000);

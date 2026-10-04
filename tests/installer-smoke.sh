@@ -45,15 +45,24 @@ curl -fsS http://127.0.0.1:8080/api/runners | jq -e '
     .runners | length == 7 and
     all(.[]; .status == "off" and .name != "pifive2") and
     any(.[]; .folder == "build-one" and .name == "test-runner")'
+memory_total=$(awk '/^MemTotal:/ {printf "%.0f\n", $2 * 1024}' /proc/meminfo)
+disk_total=$(df -B1 --output=size "$runners" | tail -n 1 | tr -d ' ')
+curl -fsS http://127.0.0.1:8080/api/runners | jq -e --argjson memory "$memory_total" --argjson disk "$disk_total" '
+    .system | .logicalProcessors > 0 and .uptimeSeconds > 0 and
+    .memory.totalBytes == $memory and .memory.usedBytes >= 0 and
+    (.memory.usedBytes + .memory.availableBytes == .memory.totalBytes) and
+    .disk.totalBytes == $disk and .disk.usedPercent >= 0 and .disk.usedPercent <= 100 and
+    .disk.availableBytes >= 0 and .disk.availableBytes <= .disk.totalBytes'
 test "$(stat -c %a /etc/runner-room/runner-room.env)" = 600
 grep -qx 'User=runner' /etc/systemd/system/runner-room.service
 runuser -u runner -- "$runners/build-one/bin/Runner.Listener" 60 &
 runner_pid=$!
 sleep 3
 curl -fsS http://127.0.0.1:8080/api/runners | jq -e '
-    .runners | length == 7 and
+    (.system.cpuUsagePercent | type == "number" and . >= 0 and . <= 100) and
+    (.runners | length == 7 and
     any(.[]; .folder == "build-one" and .status == "on" and .pid != null) and
-    ([.[] | select(.status == "on")] | length == 1)'
+    ([.[] | select(.status == "on")] | length == 1))'
 kill "$runner_pid"
 wait "$runner_pid" || true
 sleep 3
@@ -74,5 +83,15 @@ curl -fsS http://127.0.0.1:8082/healthz
 bash /fixture/install.sh --runners "$runners/build-one" --port 8082 --version v0.1.1
 curl -fsS http://127.0.0.1:8082/api/runners | jq -e '
     .runners | length == 1 and .[0].folder == "build-one" and .[0].name == "test-runner"'
+# /dev/shm is a separate tmpfs. Disk readings must follow the runner path,
+# including a symlink, instead of always reporting the root filesystem.
+mkdir -p /dev/shm/runner-room-disk
+printf '{"agentName":"separate-disk"}\n' >/dev/shm/runner-room-disk/.runner
+chown -R runner:runner /dev/shm/runner-room-disk
+ln -s /dev/shm/runner-room-disk /srv/runner-disk-link
+bash /fixture/install.sh --runners /srv/runner-disk-link --port 8082 --version v0.1.1
+disk_total=$(df -B1 --output=size /dev/shm/runner-room-disk | tail -n 1 | tr -d ' ')
+curl -fsS http://127.0.0.1:8082/api/runners | jq -e --argjson disk "$disk_total" '
+    .root == "/dev/shm/runner-room-disk" and .system.disk.totalBytes == $disk'
 systemctl stop runner-room.service
-echo 'PASS: validation, checksum, install, parent metadata, seven children, versioned bin symlink, process on/off, single-runner root, rollback, update.'
+echo 'PASS: installation, discovery, process status, system metrics, separate filesystem, rollback, update.'
