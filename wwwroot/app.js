@@ -6,15 +6,32 @@ const labels = { on: "On", off: "Off", unknown: "Unknown" };
 
 function render() {
   const runners = snapshot.runners;
+  const onCount = runners.filter(r => r.status === "on").length;
+  const offCount = runners.filter(r => r.status === "off").length;
+  const unknownCount = runners.length - onCount - offCount;
+  const onShare = runners.length ? onCount / runners.length * 100 : 0;
+  const unknownShare = runners.length ? unknownCount / runners.length * 100 : 0;
   $("demo").hidden = !snapshot.demo;
   $("total").textContent = runners.length;
-  $("on").textContent = runners.filter(r => r.status === "on").length;
-  $("off").textContent = runners.filter(r => r.status === "off").length;
+  $("on").textContent = onCount;
+  $("off").textContent = offCount;
+  $("legend-on").textContent = onCount;
+  $("legend-off").textContent = offCount;
+  $("legend-unknown").textContent = unknownCount;
+  $("activity-percent").textContent = runners.length ? `${Math.round(onShare)}%` : "—";
+  $("activity-caption").textContent = snapshot.error ? "Waiting for runner status" : runners.length ? `${onCount} of ${runners.length} runner processes active` : "No runners detected";
+  $("activity-ring").setAttribute("aria-label", snapshot.error ? "Runner status unavailable" : `${onCount} runners on, ${offCount} off, ${unknownCount} unknown`);
+  $("ring-on").setAttribute("stroke-dasharray", `${onShare} ${100 - onShare}`);
+  $("ring-unknown").setAttribute("stroke-dasharray", `${unknownShare} ${100 - unknownShare}`);
+  $("ring-unknown").setAttribute("stroke-dashoffset", -onShare);
   $("count").textContent = runners.length;
   $("host").textContent = snapshot.host;
   $("root").textContent = snapshot.root || "Not configured";
   const query = $("search").value.trim().toLowerCase();
-  const visible = runners.filter(r => `${r.name} ${r.folder}`.toLowerCase().includes(query));
+  const selectedStatus = $("status-filter").value;
+  const visible = runners.filter(r => `${r.name} ${r.folder}`.toLowerCase().includes(query) &&
+    (selectedStatus === "all" || (Object.hasOwn(labels, r.status) ? r.status : "unknown") === selectedStatus));
+  $("visible-count").textContent = `Showing ${visible.length} of ${runners.length} ${runners.length === 1 ? "runner" : "runners"}`;
   $("runners").replaceChildren();
   for (const runner of visible) {
     const row = document.createElement("tr");
@@ -24,14 +41,28 @@ function render() {
     const icon = document.createElement("span");
     icon.className = "runner-icon";
     icon.setAttribute("aria-hidden", "true");
-    icon.textContent = ">_";
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.classList.add("icon");
+    const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+    use.setAttribute("href", "#icon-terminal");
+    svg.append(use);
+    icon.append(svg);
     const title = document.createElement("span");
+    title.className = "runner-label";
     title.textContent = runner.name;
+    // Keep directories visible on small screens when registered names repeat.
+    const mobileFolder = document.createElement("span");
+    mobileFolder.className = "runner-folder-mobile";
+    mobileFolder.textContent = runner.folder;
+    title.append(mobileFolder);
     name.append(icon, title);
     nameCell.append(name);
     const folder = document.createElement("td");
     folder.className = "runner-folder";
     folder.textContent = runner.folder;
+    const pid = document.createElement("td");
+    pid.className = "pid-column";
+    pid.textContent = Number.isInteger(runner.pid) && runner.pid > 0 ? runner.pid : "—";
     const status = Object.hasOwn(labels, runner.status) ? runner.status : "unknown";
     const state = document.createElement("td");
     const badge = document.createElement("span");
@@ -41,13 +72,13 @@ function render() {
     dot.setAttribute("aria-hidden", "true");
     badge.append(dot, document.createTextNode(labels[status]));
     state.append(badge);
-    row.append(nameCell, folder, state);
+    row.append(nameCell, folder, pid, state);
     $("runners").append(row);
   }
   $("empty").hidden = visible.length > 0;
   $("empty-title").textContent = runners.length ? "No matching runners" : snapshot.error ? "Waiting for your runner folder" : "No runners found";
-  $("empty-description").textContent = runners.length ? "Try a different name or folder." : "Point RunnersRoot at the parent folder containing your runner installations. Each runner should have a .runner file or bin/Runner.Listener.";
-  $("updated").textContent = `Checked ${new Date(snapshot.checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
+  $("empty-description").textContent = runners.length ? "Try another search or choose a different status." : "Check the watched directory and make sure it contains your runner installations.";
+  $("updated").textContent = new Date(snapshot.checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
 async function refresh() {
@@ -81,6 +112,7 @@ async function refresh() {
   }
 }
 $("search").addEventListener("input", () => { if (snapshot) render(); });
+$("status-filter").addEventListener("change", () => { if (snapshot) render(); });
 $("refresh").addEventListener("click", refresh);
 refresh();
 setInterval(refresh, 5000);

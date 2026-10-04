@@ -1,31 +1,87 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Runner Room</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231e4735'/%3E%3Cpath d='m11 9 10 7-10 7z' fill='%23ceedd6'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232c8cff'/%3E%3Cpath d='m9 10 6 6-6 6m8 0h7' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E">
+  <script src="/theme.js"></script>
   <link rel="stylesheet" href="/app.css">
   <script src="/app.js" defer></script>
 </head>
 <body>
-  <header class="topbar"><a class="brand" href="/"><span class="mark" aria-hidden="true">▶</span>runner room<span class="brand-dot">.</span></a><span class="local-tag">LOCAL RUNNER MONITOR</span></header>
+  <svg class="icon-definitions" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="icon-terminal" viewBox="0 0 24 24"><path d="m5 6 6 6-6 6m9 0h5"/></symbol>
+    <symbol id="icon-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+    <symbol id="icon-server" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/><path d="M7 6.5h.01M7 17.5h.01M16 6.5h2m-2 11h2"/></symbol>
+    <symbol id="icon-power" viewBox="0 0 24 24"><path d="M12 2v10m-6-7a9 9 0 1 0 12 0"/></symbol>
+    <symbol id="icon-pause" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></symbol>
+    <symbol id="icon-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5M6.1 6a8 8 0 0 1 13.7 5M4.2 13A8 8 0 0 0 18 18"/></symbol>
+    <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
+    <symbol id="icon-shield" viewBox="0 0 24 24"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z"/><path d="m8 12 3 3 5-6"/></symbol>
+    <symbol id="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></symbol>
+    <symbol id="icon-moon" viewBox="0 0 24 24"><path d="M20.5 13A8.5 8.5 0 0 1 11 3.5 8.5 8.5 0 1 0 20.5 13Z"/></symbol>
+  </svg>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Runner Room home">
+      <span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="#icon-terminal"/></svg></span>
+      <span>RUNNER ROOM<small>SELF-HOSTED RUNNER MONITOR</small></span>
+    </a>
+    <div class="topbar-actions">
+      <button id="theme-toggle" class="theme-toggle" type="button" hidden>
+        <svg class="icon sun" aria-hidden="true"><use href="#icon-sun"/></svg>
+        <svg class="icon moon" aria-hidden="true"><use href="#icon-moon"/></svg>
+        <span id="theme-label">Light theme</span>
+      </button>
+      <button id="refresh" class="primary-button" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg>Refresh</button>
+    </div>
+  </header>
+  <div class="workspace-bar">
+    <span class="workspace-tab"><svg class="icon" aria-hidden="true"><use href="#icon-grid"/></svg>OVERVIEW</span>
+    <span class="connection"><i class="dot unknown" id="connection-dot" aria-hidden="true"></i><span id="connection">Connecting…</span></span>
+  </div>
   <main>
-    <div id="demo" class="notice demo" hidden>DEMO MODE <span>Sample runners for preview. These are not your server’s runners.</span></div>
-    <div class="page-heading"><div><div class="eyebrow">YOUR HOME SERVER, AT A GLANCE</div><h1>A room for your runners.</h1><p class="intro">A simple view of what’s running. Right here on your network.</p></div><button id="refresh" type="button"><span aria-hidden="true">↻</span> Refresh</button></div>
+    <div id="demo" class="notice demo" hidden><strong>DEMO PREVIEW</strong><span>Sample data. Your server will show its own runners here.</span></div>
+    <div class="page-heading"><div><h1>Runner overview</h1><p>One place to see what’s running on your server.</p></div><span class="scope-label">GITHUB ACTIONS / LOCAL</span></div>
     <div id="message" class="notice" role="status" hidden></div>
-    <section class="summary" aria-label="Runner counts">
-      <article><span>Total runners</span><strong id="total">—</strong><small>Discovered in your folder</small></article>
-      <article><span><i class="dot on"></i> On</span><strong id="on">—</strong><small>Runner process is running</small></article>
-      <article><span><i class="dot off"></i> Off</span><strong id="off">—</strong><small>No runner process found</small></article>
-    </section>
-    <section class="runner-panel" aria-labelledby="runners-title">
-      <div class="panel-header"><div><h2 id="runners-title">Your runners <span id="count" class="count">0</span></h2><p id="host">Connecting to your server…</p></div><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" aria-label="Search runners" placeholder="Find a runner…" autocomplete="off"></label></div>
-      <div class="table-wrap"><table><thead><tr><th>Runner</th><th>Folder</th><th>Status</th></tr></thead><tbody id="runners"></tbody></table></div>
-      <div id="empty" class="empty" hidden><span aria-hidden="true">⌁</span><h3 id="empty-title">No runners yet</h3><p id="empty-description"></p></div>
-      <div class="panel-footer"><span class="folder-label">Watching <code id="root">—</code></span><span id="updated" aria-live="polite">Waiting for first scan</span></div>
-    </section>
-    <footer><span><i class="dot on" id="connection-dot"></i><span id="connection">Updates every 5 seconds</span></span><p>Local process status only. “On” does not confirm a connection to GitHub.</p></footer>
+    <div class="dashboard-grid">
+      <div class="main-column">
+        <section class="summary" aria-label="Runner counts">
+          <article class="metric total-metric"><div class="metric-heading"><span>Total runners</span><svg class="icon" aria-hidden="true"><use href="#icon-server"/></svg></div><strong id="total">—</strong><p>Detected installations</p><span class="metric-accent" aria-hidden="true"></span></article>
+          <article class="metric on-metric"><div class="metric-heading"><span>On</span><svg class="icon" aria-hidden="true"><use href="#icon-power"/></svg></div><strong id="on">—</strong><p><i class="dot on" aria-hidden="true"></i>Process running</p><span class="metric-accent" aria-hidden="true"></span></article>
+          <article class="metric off-metric"><div class="metric-heading"><span>Off</span><svg class="icon" aria-hidden="true"><use href="#icon-pause"/></svg></div><strong id="off">—</strong><p><i class="dot off" aria-hidden="true"></i>No process detected</p><span class="metric-accent" aria-hidden="true"></span></article>
+        </section>
+        <section class="panel runner-panel" aria-labelledby="runners-title">
+          <div class="panel-heading"><h2 id="runners-title"><svg class="icon" aria-hidden="true"><use href="#icon-terminal"/></svg>Runners <span id="count" class="count">0</span></h2><span class="panel-caption">LOCAL INSTALLATIONS</span></div>
+          <div class="table-toolbar">
+            <label class="search"><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg><input id="search" type="search" aria-label="Search runners" placeholder="Search runners or directories…" autocomplete="off"></label>
+            <select id="status-filter" aria-label="Filter runners by status"><option value="all">All statuses</option><option value="on">On</option><option value="off">Off</option><option value="unknown">Unknown</option></select>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th scope="col">Runner</th><th scope="col">Directory</th><th scope="col" class="pid-column">PID</th><th scope="col">Status</th></tr></thead><tbody id="runners"></tbody></table></div>
+          <div id="empty" class="empty" hidden><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg><h3 id="empty-title">No runners yet</h3><p id="empty-description"></p></div>
+          <div class="table-footer"><span id="visible-count">Waiting for runners…</span><span>Refreshes every 5 seconds</span></div>
+        </section>
+        <p class="status-note"><svg class="icon" aria-hidden="true"><use href="#icon-shield"/></svg>“On” means a local runner process is running. It does not confirm a connection to GitHub.</p>
+      </div>
+      <aside class="side-column" aria-label="Status and server details">
+        <section class="panel activity-panel" aria-labelledby="activity-title">
+          <div class="panel-heading"><h2 id="activity-title">Process activity</h2><span class="panel-caption">CURRENT</span></div>
+          <div class="activity-body">
+            <div id="activity-ring" class="activity-ring" role="img" aria-label="Waiting for runner status">
+              <svg viewBox="0 0 180 180" aria-hidden="true"><circle class="ring-track" cx="90" cy="90" r="73"/><circle id="ring-on" class="ring-on" cx="90" cy="90" r="73" pathLength="100" stroke-dasharray="0 100"/><circle id="ring-unknown" class="ring-unknown" cx="90" cy="90" r="73" pathLength="100" stroke-dasharray="0 100"/></svg>
+              <div class="ring-value"><strong id="activity-percent">—</strong><span>RUNNING</span></div>
+            </div>
+            <p id="activity-caption">Waiting for the first scan</p>
+          </div>
+          <div class="status-legend"><div><span><i class="dot on" aria-hidden="true"></i>On</span><strong id="legend-on">—</strong></div><div><span><i class="dot off" aria-hidden="true"></i>Off</span><strong id="legend-off">—</strong></div><div><span><i class="dot unknown" aria-hidden="true"></i>Unknown</span><strong id="legend-unknown">—</strong></div></div>
+        </section>
+        <section class="panel server-panel" aria-labelledby="server-title">
+          <div class="panel-heading"><h2 id="server-title">Server details</h2><svg class="icon" aria-hidden="true"><use href="#icon-server"/></svg></div>
+          <div class="server-body"><span class="field-label">HOSTNAME</span><h3 id="host">Connecting…</h3><dl><div class="directory-field"><dt>WATCHED DIRECTORY</dt><dd><code id="root">—</code></dd></div><div><dt>Refresh interval</dt><dd>5 seconds</dd></div><div><dt>Last scan</dt><dd id="updated">—</dd></div><div><dt>Status source</dt><dd>Local processes</dd></div></dl></div>
+          <div class="server-footer"><svg class="icon" aria-hidden="true"><use href="#icon-shield"/></svg>Read-only monitoring</div>
+        </section>
+      </aside>
+    </div>
   </main>
 </body>
 </html>

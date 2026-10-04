@@ -2,6 +2,8 @@
 
 A small dashboard for GitHub Actions runners on your Linux server. It shows which runners are **On**, **Off**, or **Unknown**, and refreshes every five seconds.
 
+Dark theme is the default. Use the theme button in the header to switch to light; your choice is saved in your browser.
+
 C# / ASP.NET Core backend. Plain HTML, CSS, and JavaScript frontend.
 
 ## Install
