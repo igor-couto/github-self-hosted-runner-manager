@@ -13,9 +13,22 @@ exec /usr/bin/curl "$@"
 SH
 chmod +x /usr/local/bin/curl
 runners='/srv/runner folders'
-mkdir -p "$runners/build-one/bin" "$runners/ordinary-folder"
+# Reproduce a parent with leftover registration metadata and seven child runners.
+# Runner auto-updates replace bin with an absolute symlink to a versioned folder.
+mkdir -p "$runners/build-one/bin.2.326.0" "$runners/build-one/bin.2.325.0" "$runners/ordinary-folder"
+printf '{"agentName":"pifive2"}\n' >"$runners/.runner"
 printf '{"agentName":"test-runner"}\n' >"$runners/build-one/.runner"
-cp /bin/sleep "$runners/build-one/bin/Runner.Listener"
+cp /bin/sleep "$runners/build-one/bin.2.326.0/Runner.Listener"
+cp /bin/sleep "$runners/build-one/bin.2.325.0/Runner.Listener"
+ln -s "$runners/build-one/bin.2.326.0" "$runners/build-one/bin"
+for number in {2..7}; do
+    mkdir -p "$runners/project-$number"
+    printf '{"agentName":"project-%s"}\n' "$number" >"$runners/project-$number/.runner"
+done
+# Nested work folders and symlink aliases must not become additional runners.
+mkdir -p "$runners/ordinary-folder/nested"
+printf '{"agentName":"nested"}\n' >"$runners/ordinary-folder/nested/.runner"
+ln -s "$runners/build-one" "$runners/alias"
 chown -R runner:runner "$runners"
 install_app() { bash /fixture/install.sh --runners "$runners" "$@"; }
 bash /fixture/install.sh --help >/dev/null
@@ -28,17 +41,23 @@ cp /fixture/good.sha256 /fixture/runner-room-linux-x64.tar.gz.sha256
 
 install_app
 systemd-analyze verify /etc/systemd/system/runner-room.service
-curl -fsS http://127.0.0.1:8080/api/runners | grep -F '"status":"off"'
+curl -fsS http://127.0.0.1:8080/api/runners | jq -e '
+    .runners | length == 7 and
+    all(.[]; .status == "off" and .name != "pifive2") and
+    any(.[]; .folder == "build-one" and .name == "test-runner")'
 test "$(stat -c %a /etc/runner-room/runner-room.env)" = 600
 grep -qx 'User=runner' /etc/systemd/system/runner-room.service
 runuser -u runner -- "$runners/build-one/bin/Runner.Listener" 60 &
 runner_pid=$!
 sleep 3
-curl -fsS http://127.0.0.1:8080/api/runners | grep -F '"status":"on"'
+curl -fsS http://127.0.0.1:8080/api/runners | jq -e '
+    .runners | length == 7 and
+    any(.[]; .folder == "build-one" and .status == "on" and .pid != null) and
+    ([.[] | select(.status == "on")] | length == 1)'
 kill "$runner_pid"
 wait "$runner_pid" || true
 sleep 3
-curl -fsS http://127.0.0.1:8080/api/runners | grep -F '"status":"off"'
+curl -fsS http://127.0.0.1:8080/api/runners | jq -e '.runners | length == 7 and all(.[]; .status == "off")'
 
 old=$(readlink /opt/runner-room/current)
 cp /etc/runner-room/runner-room.env /tmp/original.env
@@ -52,5 +71,8 @@ curl -fsS http://127.0.0.1:8080/healthz
 install_app --version v0.1.1 --port 8082
 test "$(readlink /opt/runner-room/current)" != "$old"
 curl -fsS http://127.0.0.1:8082/healthz
+bash /fixture/install.sh --runners "$runners/build-one" --port 8082 --version v0.1.1
+curl -fsS http://127.0.0.1:8082/api/runners | jq -e '
+    .runners | length == 1 and .[0].folder == "build-one" and .[0].name == "test-runner"'
 systemctl stop runner-room.service
-echo 'PASS: validation, checksum, install, runtime, static service config, process on/off, update rollback, update.'
+echo 'PASS: validation, checksum, install, parent metadata, seven children, versioned bin symlink, process on/off, single-runner root, rollback, update.'

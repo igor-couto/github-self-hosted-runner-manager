@@ -34,9 +34,12 @@ public sealed class RunnerMonitor(string? configuredRoot, bool demo)
             var rootInfo = new DirectoryInfo(Path.GetFullPath(configuredRoot));
             var root = rootInfo.ResolveLinkTarget(true)?.FullName ?? rootInfo.FullName;
             if (!Directory.Exists(root)) return Error("The runner folder does not exist or cannot be read. Check RunnersRoot and permissions.");
-            var folders = IsRunner(root) ? new[] { root } : Directory.GetDirectories(root)
+            var folders = Directory.GetDirectories(root)
                 .Where(path => !File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint))
                 .Where(IsRunner).OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase).ToArray();
+            // A parent can retain an old registration. Prefer its child runners so
+            // that metadata does not hide them; otherwise support a single runner.
+            if (folders.Length == 0 && IsRunner(root)) folders = [root];
             var processes = ReadProcesses(out var reliable);
             var runners = new List<RunnerInfo>();
             foreach (var folder in folders)

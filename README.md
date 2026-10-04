@@ -81,7 +81,7 @@ This prototype has no login and is intended for a trusted LAN. If your firewall 
 - **Off:** no matching process was found.
 - **Unknown:** a reliable process check was not possible.
 
-On describes a local process, not a confirmed connection to GitHub. Discovery checks the configured folder and its immediate children; symbolic-link child folders are skipped. It reads runner names from `.runner` and process identities from `/proc`, never credentials, job workspaces, or diagnostic logs. It cannot start or stop runners.
+On describes a local process, not a confirmed connection to GitHub. Discovery uses runner installations in the configured folder's immediate children; symbolic-link child folders are skipped. If it finds no child runners, it checks the configured folder itself as a single installation. Leftover `.runner` metadata in a parent folder therefore cannot hide its child runners. It reads runner names from `.runner` and process identities from `/proc`, never credentials, job workspaces, or diagnostic logs. It cannot start or stop runners.
 
 ## Publishing releases (maintainers only)
 
@@ -144,4 +144,4 @@ docker build -f tests/installer.Dockerfile -t runner-room-installer-test .
 docker run --rm runner-room-installer-test
 ```
 
-These tests use the actual bundled x64 application and real Linux runner stand-in processes. Release downloads and service supervision are stubbed inside the disposable container; `systemd-analyze verify` checks the generated unit. Tests cover missing arguments, x64/ARM32/ARM64 download selection (including mixed kernel/userspace bitness), checksum failure, first installation, on/off detection, failed-update rollback, and a successful update. Architecture selection tests stub system identity; they do not execute an ARM binary on the x64 test host.
+These tests use the actual bundled x64 application and real Linux runner stand-in processes. Release downloads and service supervision are stubbed inside the disposable container; `systemd-analyze verify` checks the generated unit. Tests cover missing arguments, x64/ARM32/ARM64 download selection (including mixed kernel/userspace bitness), checksum failure, first installation, seven child runners beneath a parent with leftover registration metadata, on/off detection through a versioned `bin` symlink, a single-runner root, failed-update rollback, and a successful update. Architecture selection tests stub system identity; they do not execute an ARM binary on the x64 test host.

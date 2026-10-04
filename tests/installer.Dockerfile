@@ -1,6 +1,6 @@
 FROM debian:12-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl systemd util-linux procps && rm -rf /var/lib/apt/lists/*
+    ca-certificates curl systemd util-linux procps jq && rm -rf /var/lib/apt/lists/*
 RUN useradd --create-home --uid 1001 runner && mkdir -p /run/systemd/system /fixture
 COPY artifacts/package-linux-x64/ /fixture/package/
 RUN chmod +x /fixture/package/RunnerRoom && \
