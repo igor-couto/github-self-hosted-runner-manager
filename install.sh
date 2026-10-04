@@ -16,7 +16,7 @@ main() {
     die() { printf 'Error: %s\n' "$*" >&2; exit 1; }
     usage() {
         cat <<'HELP'
-Runner Room installer (Linux with systemd, x64 or ARM64)
+Runner Room installer (Linux with systemd, x64, ARM32, or ARM64)
 
   sudo bash install.sh --runners /path/to/runners [options]
 
@@ -34,7 +34,9 @@ HELP
         case "$1" in
             --help|-h) usage; return ;;
             --runners|--port|--user|--version)
-                (($# >= 2)) && [[ -n $2 && $2 != --* ]] || die "Missing value for $1."
+                if (($# < 2)) || [[ -z ${2:-} || ${2:-} == --* ]]; then
+                    die "Missing value for $1."
+                fi
                 case "$1" in
                     --runners) runners=$2 ;;
                     --port) port=$2 ;;
@@ -53,14 +55,23 @@ HELP
     ((10#$port >= 1024 && 10#$port <= 65535)) || die 'Port must be between 1024 and 65535.'
     port=$((10#$port))
     [[ $version == latest || $version =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][a-zA-Z0-9.-]+)?$ ]] || die 'Version must be a release tag such as v0.1.0.'
-    for command in curl tar sha256sum systemctl runuser flock realpath stat getent; do
+    for command in curl tar sha256sum systemctl runuser flock realpath stat getent getconf; do
         command -v "$command" >/dev/null || die "Required Linux utility is missing: $command."
     done
     [[ -d /run/systemd/system ]] || die 'A running systemd host is required. Install directly on your Linux server.'
     case "$(uname -m)" in
-        x86_64) rid=linux-x64 ;;
-        aarch64|arm64) rid=linux-arm64 ;;
-        *) die 'Supported architectures: x86_64 and ARM64.' ;;
+        x86_64)
+            [[ $(getconf LONG_BIT) == 64 ]] || die 'x64 requires a 64-bit Linux userspace.'
+            rid=linux-x64 ;;
+        armv7l|armv8l) rid=linux-arm ;;
+        aarch64|arm64)
+            # A Pi can have a 64-bit kernel with a 32-bit OS/userspace.
+            case "$(getconf LONG_BIT)" in
+                32) rid=linux-arm ;;
+                64) rid=linux-arm64 ;;
+                *) die 'Could not determine the ARM userspace architecture.' ;;
+            esac ;;
+        *) die 'Supported architectures: x64, ARM32 (ARMv7 or newer), and ARM64. ARMv6 is not supported.' ;;
     esac
     [[ ! -f /etc/alpine-release ]] || die 'These releases require glibc Linux (such as Ubuntu or Debian), not Alpine/musl.'
     runners=$(realpath -- "$runners")

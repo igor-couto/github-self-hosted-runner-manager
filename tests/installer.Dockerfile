@@ -9,5 +9,6 @@ RUN chmod +x /fixture/package/RunnerRoom && \
 COPY install.sh /fixture/install.sh
 COPY tests/installer-mocks/ /usr/local/bin/
 COPY tests/installer-smoke.sh /fixture/test.sh
+COPY tests/installer-platforms.sh /fixture/platforms.sh
 RUN chmod +x /usr/local/bin/curl /usr/local/bin/systemctl
 CMD ["bash", "/fixture/test.sh"]

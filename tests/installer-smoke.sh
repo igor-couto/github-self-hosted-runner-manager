@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+bash /fixture/platforms.sh
 # Mock only release downloads and service supervision, never the actual app.
 # Loopback curl requests always use the real curl binary.
 mv /usr/local/bin/curl /usr/local/bin/release-curl

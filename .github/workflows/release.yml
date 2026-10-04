@@ -5,17 +5,25 @@ on:
 permissions:
   contents: read
 jobs:
-  package:
+  validate:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash -n install.sh && shellcheck install.sh
+  package:
+    needs: validate
+    # An unset repository variable keeps all three builds on GitHub's x64 runner.
+    runs-on: ${{ matrix.rid != 'linux-x64' && vars.ARM_RUNNER_LABELS != '' && fromJSON(vars.ARM_RUNNER_LABELS) || 'ubuntu-latest' }}
+    timeout-minutes: 30
     strategy:
+      fail-fast: false
       matrix:
-        rid: [linux-x64, linux-arm64]
+        rid: [linux-x64, linux-arm, linux-arm64]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
-      - run: bash -n install.sh && shellcheck install.sh
       - name: Publish with bundled .NET runtime
         run: >-
           dotnet publish RunnerRoom.csproj -c Release -r ${{ matrix.rid }}
