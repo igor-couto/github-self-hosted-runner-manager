@@ -8,7 +8,7 @@ namespace RunnerRoom;
 
 public sealed record ResourceUsage(long TotalBytes, long UsedBytes, long AvailableBytes)
 {
-    public double UsedPercent => UsedBytes * 100d / TotalBytes;
+    public double UsedPercent => TotalBytes > 0 ? UsedBytes * 100d / TotalBytes : 0;
 }
 
 public sealed record SystemSnapshot(string Architecture, int? LogicalProcessors, double? CpuUsagePercent,

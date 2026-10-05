@@ -109,6 +109,28 @@
         </section>
       </aside>
     </div>
+    <section class="panel monitoring-panel" aria-labelledby="monitoring-title">
+      <div class="panel-heading"><div><span class="field-label">HOST TELEMETRY</span><h2 id="monitoring-title">Detailed system monitoring</h2></div><span id="monitoring-checked" class="panel-caption">Collecting…</span></div>
+      <div class="monitor-tabs" role="tablist" aria-label="System metrics">
+        <button type="button" role="tab" id="tab-cpu" aria-controls="monitor-cpu" aria-selected="true" data-monitor-tab="cpu">CPU &amp; memory</button>
+        <button type="button" role="tab" id="tab-network" aria-controls="monitor-network" aria-selected="false" tabindex="-1" data-monitor-tab="network">Network</button>
+        <button type="button" role="tab" id="tab-storage" aria-controls="monitor-storage" aria-selected="false" tabindex="-1" data-monitor-tab="storage">Storage</button>
+        <button type="button" role="tab" id="tab-hardware" aria-controls="monitor-hardware" aria-selected="false" tabindex="-1" data-monitor-tab="hardware">Hardware</button>
+        <button type="button" role="tab" id="tab-processes" aria-controls="monitor-processes" aria-selected="false" tabindex="-1" data-monitor-tab="processes">Processes</button>
+        <button type="button" role="tab" id="tab-runner-resources" aria-controls="monitor-runner-resources" aria-selected="false" tabindex="-1" data-monitor-tab="runner-resources">Runner resources</button>
+      </div>
+      <p id="monitoring-warning" class="monitor-warning" role="status" hidden></p>
+      <div id="monitor-cpu" class="monitor-content" role="tabpanel" aria-labelledby="tab-cpu"><p class="detail-hint">Collecting system readings…</p></div>
+      <div id="monitor-network" class="monitor-content" role="tabpanel" aria-labelledby="tab-network" hidden></div>
+      <div id="monitor-storage" class="monitor-content" role="tabpanel" aria-labelledby="tab-storage" hidden></div>
+      <div id="monitor-hardware" class="monitor-content" role="tabpanel" aria-labelledby="tab-hardware" hidden></div>
+      <div id="monitor-processes" class="monitor-content" role="tabpanel" aria-labelledby="tab-processes" hidden>
+        <div class="process-controls"><label>View <select id="process-view"><option value="applications">Applications</option><option value="processes">Individual processes</option></select></label><label>Sort by <select id="process-sort"><option value="cpu">CPU</option><option value="memory">RAM</option></select></label></div>
+        <div id="process-readings"></div>
+      </div>
+      <div id="monitor-runner-resources" class="monitor-content" role="tabpanel" aria-labelledby="tab-runner-resources" hidden></div>
+      <div class="table-footer">Read-only · Samples every 15 seconds · CPU percentages use one core = 100%</div>
+    </section>
   </main>
   <dialog id="log-dialog" aria-labelledby="log-title">
     <div class="log-heading"><div><span class="field-label">RUNNER DIAGNOSTICS</span><h2 id="log-title">Runner logs</h2></div><button id="log-close" type="button" class="secondary-button" aria-label="Close logs">Close ✕</button></div>
@@ -124,5 +146,6 @@
     <p id="log-note" class="detail-hint"></p>
   </dialog>
   <script src="/logs.js" defer></script>
+  <script src="/monitoring.js" defer></script>
 </body>
 </html>

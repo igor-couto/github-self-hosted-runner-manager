@@ -74,6 +74,7 @@ function badge(status, text) {
 function runnerDetails(runner) {
   const box = element("div", "runner-details");
   box.append(currentJobPanel(runner));
+  if (typeof runnerResourcePanel === "function") box.append(runnerResourcePanel(runner));
   const fields = element("dl", "detail-grid");
   const add = (label, value) => {
     const field = element("div");

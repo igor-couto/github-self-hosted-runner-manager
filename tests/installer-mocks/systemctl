@@ -16,6 +16,8 @@ start_app() {
         export "$key=$value"
     done </etc/runner-room/runner-room.env
     cd /opt/runner-room/current
+    install -d -o runner -g runner -m 750 /var/lib/runner-room
+    export STATE_DIRECTORY=/var/lib/runner-room
     runuser -u runner -- ./RunnerRoom 9>&- >/tmp/runner-room.log 2>&1 &
     echo "$!" >/tmp/runner-room.pid
 }

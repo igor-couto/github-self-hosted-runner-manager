@@ -20,6 +20,8 @@ printf '{"agentName":"pifive2"}\n' >"$runners/.runner"
 printf '{"agentId":42,"agentName":"test-runner","gitHubUrl":"https://github.com/example/api","poolName":"Default"}\n' >"$runners/build-one/.runner"
 printf 'actions.runner.example.api.service\n' >"$runners/build-one/.service"
 mkdir -p "$runners/build-one/_diag"
+mkdir -p "$runners/build-one/_work"
+head -c 128 /dev/zero >"$runners/build-one/_work/workspace-sample"
 printf '[2025-07-01 10:03:00Z INFO Terminal] 2025-07-01 10:03:00Z: Job Build API completed with result: Succeeded\n' >"$runners/build-one/_diag/Runner_20250701.log"
 cp /bin/sleep "$runners/build-one/bin.2.326.0/Runner.Listener"
 cp /bin/sleep "$runners/build-one/bin.2.326.0/Runner.Worker"
@@ -97,6 +99,19 @@ curl -fsS "http://127.0.0.1:8080/api/runners/$runner_id/logs?file=..%2F.credenti
 chmod 000 "$runners/build-one/_diag/$worker_log"
 curl -fsS "http://127.0.0.1:8080/api/runners/$runner_id/logs" | jq -e '.excerpt.lines | length == 0'
 chmod 644 "$runners/build-one/_diag/$worker_log"
+# Background samples must work without polling the runner inventory.
+for ((attempt=0; attempt<25; attempt++)); do
+    if curl -fsS http://127.0.0.1:8080/api/system >/tmp/system-metrics.json && jq -e '
+        (.cores | length > 0 and all(.[]; .percent != null)) and
+        (.network | any(.[]; .downloadBytesPerSecond != null)) and
+        (.runners | any(.[]; .folder == "build-one" and .processes >= 2 and .workspace.bytes == 128))' /tmp/system-metrics.json >/dev/null; then break; fi
+    sleep 1
+done
+jq -e '(.fileSystems | length > 0) and (.topMemory | length > 0) and
+    (.runners | any(.[]; .folder == "build-one" and .processes >= 2 and .workspace.bytes == 128))' /tmp/system-metrics.json
+test -s /var/lib/runner-room/monitoring.json
+test "$(stat -c %U /var/lib/runner-room/monitoring.json)" = runner
+grep -qx 'StateDirectory=runner-room' /etc/systemd/system/runner-room.service
 kill "$worker_pid"
 wait "$worker_pid" || true
 kill "$runner_pid"

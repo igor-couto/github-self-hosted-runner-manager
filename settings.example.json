@@ -17,6 +17,11 @@
     "Enabled": true,
     "RedactValues": []
   },
+  "Monitoring": {
+    "HistoryDays": 7,
+    "WorkspaceScanMinutes": 5,
+    "FileSystems": []
+  },
   "GitHub": {
     "TokenFile": "/etc/runner-room/github.token"
   }

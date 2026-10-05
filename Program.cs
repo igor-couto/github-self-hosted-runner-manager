@@ -16,6 +16,8 @@ builder.Services.AddSingleton(options);
 builder.Services.AddSingleton(new GitHubRunnerClient(new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
     { Timeout = TimeSpan.FromSeconds(5) }, options.GitHub));
 builder.Services.AddSingleton<RunnerMonitor>();
+builder.Services.AddSingleton<DetailedSystemMonitor>();
+builder.Services.AddHostedService(services => services.GetRequiredService<DetailedSystemMonitor>());
 var app = builder.Build();
 app.Use(async (context, next) =>
 {
@@ -30,4 +32,5 @@ app.MapGet("/api/runners", (RunnerMonitor monitor) => monitor.GetSnapshotAsync()
 app.MapGet("/api/runners/{id}/logs", async (string id, string? file, RunnerMonitor monitor) =>
     await monitor.GetLogsAsync(id, file) is { } logs ? Results.Ok(logs) : Results.NotFound());
 app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }));
+app.MapGet("/api/system", (DetailedSystemMonitor monitor) => monitor.Current is { } snapshot ? Results.Ok(snapshot) : Results.Json(new { message = "Collecting the first system sample." }, statusCode: 503));
 app.Run();

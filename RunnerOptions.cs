@@ -9,6 +9,15 @@ public sealed class RunnerOptions
     public RunnerOverride[] RunnerOverrides { get; set; } = [];
     public GitHubOptions GitHub { get; set; } = new();
     public LogOptions Logs { get; set; } = new();
+    public MonitoringOptions Monitoring { get; set; } = new();
+}
+
+public sealed class MonitoringOptions
+{
+    public string? StateDirectory { get; set; }
+    public string[] FileSystems { get; set; } = [];
+    public int HistoryDays { get; set; } = 7;
+    public int WorkspaceScanMinutes { get; set; } = 5;
 }
 
 public sealed class LogOptions

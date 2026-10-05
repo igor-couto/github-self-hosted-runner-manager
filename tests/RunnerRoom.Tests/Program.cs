@@ -57,4 +57,5 @@ Check(demo is { LogicalProcessors: 4, CpuUsagePercent: 18.4, Memory: not null, D
     "Demo mode must use explicit sample metrics even without system access.");
 await InventoryChecks.Run(Check);
 await JobLogChecks.Run(Check);
-Console.WriteLine($"PASS: {checks} system, inventory, job and log checks.");
+await MonitoringChecks.Run(Check);
+Console.WriteLine($"PASS: {checks} system, inventory, job, log and detailed monitoring checks.");
