@@ -8,7 +8,14 @@ if (args is ["--check-runtime"])
 }
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddSingleton(new RunnerMonitor(builder.Configuration["RunnersRoot"], builder.Configuration.GetValue<bool>("Demo")));
+var settingsFile = builder.Configuration["SettingsFile"];
+builder.Configuration.AddJsonFile(settingsFile ?? (OperatingSystem.IsLinux() ? "/etc/runner-room/settings.json" : "settings.json"),
+    optional: settingsFile is null, reloadOnChange: false).AddEnvironmentVariables().AddCommandLine(args);
+var options = builder.Configuration.Get<RunnerOptions>() ?? new();
+builder.Services.AddSingleton(options);
+builder.Services.AddSingleton(new GitHubRunnerClient(new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
+    { Timeout = TimeSpan.FromSeconds(5) }, options.GitHub));
+builder.Services.AddSingleton<RunnerMonitor>();
 var app = builder.Build();
 app.Use(async (context, next) =>
 {
@@ -19,6 +26,6 @@ app.Use(async (context, next) =>
 });
 app.UseDefaultFiles();
 app.UseStaticFiles();
-app.MapGet("/api/runners", (RunnerMonitor monitor) => monitor.GetSnapshot());
+app.MapGet("/api/runners", (RunnerMonitor monitor) => monitor.GetSnapshotAsync());
 app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }));
 app.Run();

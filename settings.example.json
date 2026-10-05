@@ -1,0 +1,19 @@
+{
+  "RunnersRoots": ["/home/github-runner/actions-runner", "/srv/other-runners"],
+  "Discovery": { "Recursive": true, "MaxDepth": 4 },
+  "RunnerOverrides": [
+    {
+      "Path": "/home/github-runner/actions-runner/activities-api-arm64-2.322.0",
+      "DisplayName": "Activities API",
+      "Group": "APIs"
+    },
+    {
+      "Path": "/home/github-runner/actions-runner/newsletter-arm64-2.321.0",
+      "DisplayName": "Newsletter",
+      "Group": "Websites"
+    }
+  ],
+  "GitHub": {
+    "TokenFile": "/etc/runner-room/github.token"
+  }
+}

@@ -1,6 +1,6 @@
 # Runner Room
 
-A small dashboard for GitHub Actions runners on your Linux server. It shows which runners are **On**, **Off**, or **Unknown**, and refreshes every 15 seconds.
+A small dashboard for GitHub Actions runners on your Linux server. It shows which runners are **Busy**, **Idle**, **Offline**, or **Unknown**, and refreshes every 15 seconds.
 
 Dark theme is the default. Use the theme button in the header to switch to light; your choice is saved in your browser.
 
@@ -81,11 +81,56 @@ This prototype has no login and is intended for a trusted LAN. If your firewall 
 
 ## What the status means
 
-- **On:** a local `Runner.Listener` or `Runner.Worker` executable from that folder is running.
-- **Off:** no matching process was found.
-- **Unknown:** a reliable process check was not possible.
+- **Busy:** a local `Runner.Worker` from that installation is running.
+- **Idle:** its `Runner.Listener` is running with no visible worker, and process visibility is reliable.
+- **Offline:** no matching process was found and process visibility is reliable.
+- **Unknown:** permissions or process visibility prevent determining activity reliably.
 
-On describes a local process, not a confirmed connection to GitHub. Discovery uses runner installations in the configured folder's immediate children; symbolic-link child folders are skipped. If it finds no child runners, it checks the configured folder itself as a single installation. Leftover `.runner` metadata in a parent folder therefore cannot hide its child runners. It reads runner names from `.runner` and process identities from `/proc`, never credentials, job workspaces, or diagnostic logs. It cannot start or stop runners.
+**Local activity and GitHub connectivity are independent.** A listener can run while disconnected. The GitHub column reports Online/Offline only after an optional API check; otherwise it shows Not checked or Unknown. A failed API request never becomes Offline. API results are cached for up to 60 seconds, with their check time in the expanded details; local readings refresh every 15 seconds. Local activity is not overwritten by GitHub's potentially older busy flag.
+
+Select a runner to expand its registered name, repository or organization scope, labels, machine, installed platform/version, process/PID/uptime, service name/state, last observed job and job activity time. Group by repository, organization/owner, machine, custom group, or registered runner group. Search includes display names, registered names, directories, projects, custom groups, machines, and GitHub labels.
+
+Repository metadata and runner group come from `.runner`; the group is the locally recorded registration group, not a fresh GitHub group lookup. Platform comes from the runner's ELF executable; version comes from its assembly metadata or resolved `bin.VERSION`, never the installation folder's potentially outdated name. Uptime is the listener process age (or worker age if no listener is visible). Service state comes from a read-only `systemctl show`; unavailable systemd access shows Unknown, and runners without `.service` show Not configured. Missing metadata is explicitly unavailable.
+
+For last-job information, the app reads only recognized job start/completion summary lines from the tails of up to five recent `_diag/Runner_*.log` files (256 KiB per file). Last activity means the most recent **recorded job event**, not a heartbeat or filesystem modification time. Old/rotated logs may leave this unavailable; an observed start without a completion does not prove the job is still running. No raw logs, runner credentials, or job workspaces are exposed. The app cannot start or stop runners.
+
+## Richer inventory configuration
+
+The original installer command still works. Advanced settings live in **`/etc/runner-room/settings.json`**, which the installer leaves untouched during updates. Create this file only if needed; start with `settings.example.json` in this repository and adjust every path. The service account must be able to read it. Restart `runner-room` after changes.
+
+```json
+{
+  "RunnersRoots": ["/home/github-runner/actions-runner", "/srv/other-runners"],
+  "Discovery": { "Recursive": true, "MaxDepth": 4 },
+  "RunnerOverrides": [
+    {
+      "Path": "/home/github-runner/actions-runner/activities-api-arm64-2.322.0",
+      "DisplayName": "Activities API",
+      "Group": "APIs"
+    }
+  ]
+}
+```
+
+- `RunnersRoots` replaces the legacy single `RunnersRoot` when nonempty. Overlapping roots are deduplicated. Every root needs read/traverse access for the service account; inaccessible roots generate a warning while readable roots still work.
+- Default discovery checks immediate children, then the configured root itself when no child runners are found. This preserves the fix for stale parent registrations. Enable `Discovery.Recursive` to find installations at deeper levels; `MaxDepth` defaults to 4 and is capped at 16. Discovery stops inside recognized installations and excludes `_work`, `_diag`, hidden folders, binary directories, and child directory symlinks. A configured root may itself be a symlink. A 4096-directory limit bounds scans and produces a warning when reached.
+- `RunnerOverrides.Path` is the full installation path. `DisplayName` and `Group` affect this dashboard only; they never change GitHub registration, labels, or runner files. Repeated registered names such as `pifive2` remain visible in the details.
+- System disk readings refer to the **first readable root's filesystem**; they do not combine disks from all roots. Machine grouping currently groups installations on this one host, ready for a future multi-server feature.
+- For development, pass `--SettingsFile /absolute/path/settings.json`. Explicitly selected missing/invalid files fail startup. Environment variables and command-line settings take precedence over JSON. Arrays can also be set using `RunnersRoots__0`, `RunnersRoots__1`, etc.
+
+### Optional GitHub connectivity and labels
+
+Local monitoring works without a token. To enable GitHub checks, create a fine-grained personal access token for the relevant repository owner with **repository Administration: Read** for repository runners, or **organization Self-hosted runners: Read** for organization runners. The account must have the access GitHub requires for these endpoints. See [GitHub's runner API permissions](https://docs.github.com/en/rest/actions/self-hosted-runners).
+
+Store the token alone in `/etc/runner-room/github.token`, readable only by root and the dashboard's service account (for example root-owned, the service account's private group, mode `640`). Add this property to `settings.json` and restart the service:
+
+```json
+"GitHub": { "TokenFile": "/etc/runner-room/github.token" }
+```
+
+Alternatively use the `GitHub__Token` environment variable. Never put real tokens in source control. The backend sends the token only to `https://api.github.com`, rejects redirects, and matches registrations by scope and runner ID rather than name. GitHub Enterprise hosts are not supported by this optional integration yet. Requests have bounded concurrency/timeouts; inaccessible registrations, permission errors, and rate limits show Unknown with an explanation. The token is never sent to the browser. One token must cover all configured scopes; scopes it cannot access continue to show local information.
+
+The installer rewrites its environment file on update, so the separate JSON/token files are the recommended persistent configuration.
 
 ## System information
 
@@ -161,4 +206,4 @@ docker build -f tests/installer.Dockerfile -t runner-room-installer-test .
 docker run --rm runner-room-installer-test
 ```
 
-These tests use the actual bundled x64 application and real Linux runner stand-in processes. Release downloads and service supervision are stubbed inside the disposable container; `systemd-analyze verify` checks the generated unit. Tests cover missing arguments, x64/ARM32/ARM64 download selection (including mixed kernel/userspace bitness), checksum failure, first installation, seven child runners beneath a parent with leftover registration metadata, on/off detection through a versioned `bin` symlink, a single-runner root, failed-update rollback, and a successful update. Architecture selection tests stub system identity; they do not execute an ARM binary on the x64 test host.
+These tests use the actual bundled x64 application and real Linux runner stand-in processes. Release downloads and service supervision are stubbed inside the disposable container; `systemd-analyze verify` checks the generated unit. Tests cover missing arguments, x64/ARM32/ARM64 download selection (including mixed kernel/userspace bitness), checksum failure, first installation, stale parent registration metadata, busy/idle/offline detection through versioned binaries, runner metadata and log summaries, service state parsing, recursive/multiple roots, aliases, failed-update rollback, and settings preservation during updates. The console checks also exercise GitHub responses using a fake HTTP handler, including denied access, invalid data, registration matching, and token isolation. Architecture selection tests stub system identity; they do not execute an ARM binary on the x64 test host.

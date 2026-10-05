@@ -55,4 +55,5 @@ Check(SystemMonitor.ReadDisk(Path.GetTempPath()) is { TotalBytes: > 0, UsedBytes
 var demo = new SystemMonitor(missingPath).Read(missingPath, true);
 Check(demo is { LogicalProcessors: 4, CpuUsagePercent: 18.4, Memory: not null, Disk: not null },
     "Demo mode must use explicit sample metrics even without system access.");
-Console.WriteLine($"PASS: {checks} system metric checks.");
+await InventoryChecks.Run(Check);
+Console.WriteLine($"PASS: {checks} system and runner inventory checks.");

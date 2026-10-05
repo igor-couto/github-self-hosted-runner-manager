@@ -20,6 +20,9 @@ start_app() {
     echo "$!" >/tmp/runner-room.pid
 }
 case "$1" in
+    show)
+        printf 'Id=actions.runner.example.api.service\nLoadState=loaded\nActiveState=active\nSubState=running\n\n'
+        ;;
     daemon-reload) : ;;
     enable) touch /tmp/runner-room.enabled ;;
     disable) rm -f /tmp/runner-room.enabled ;;

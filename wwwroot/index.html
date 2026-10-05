@@ -48,20 +48,22 @@
       <div class="main-column">
         <section class="summary" aria-label="Runner counts">
           <article class="metric total-metric"><div class="metric-heading"><span>Total runners</span><svg class="icon" aria-hidden="true"><use href="#icon-server"/></svg></div><strong id="total">—</strong><p>Detected installations</p><span class="metric-accent" aria-hidden="true"></span></article>
-          <article class="metric on-metric"><div class="metric-heading"><span>On</span><svg class="icon" aria-hidden="true"><use href="#icon-power"/></svg></div><strong id="on">—</strong><p><i class="dot on" aria-hidden="true"></i>Process running</p><span class="metric-accent" aria-hidden="true"></span></article>
-          <article class="metric off-metric"><div class="metric-heading"><span>Off</span><svg class="icon" aria-hidden="true"><use href="#icon-pause"/></svg></div><strong id="off">—</strong><p><i class="dot off" aria-hidden="true"></i>No process detected</p><span class="metric-accent" aria-hidden="true"></span></article>
+          <article class="metric busy-metric"><div class="metric-heading"><span>Busy</span><svg class="icon" aria-hidden="true"><use href="#icon-power"/></svg></div><strong id="busy">—</strong><p><i class="dot busy" aria-hidden="true"></i>Executing a job</p><span class="metric-accent" aria-hidden="true"></span></article>
+          <article class="metric on-metric"><div class="metric-heading"><span>Idle</span><svg class="icon" aria-hidden="true"><use href="#icon-pause"/></svg></div><strong id="idle">—</strong><p><i class="dot idle" aria-hidden="true"></i>Listener running</p><span class="metric-accent" aria-hidden="true"></span></article>
+          <article class="metric off-metric"><div class="metric-heading"><span>Offline</span><svg class="icon" aria-hidden="true"><use href="#icon-pause"/></svg></div><strong id="offline">—</strong><p><i class="dot offline" aria-hidden="true"></i>No process detected</p><span class="metric-accent" aria-hidden="true"></span></article>
         </section>
         <section class="panel runner-panel" aria-labelledby="runners-title">
           <div class="panel-heading"><h2 id="runners-title"><svg class="icon" aria-hidden="true"><use href="#icon-terminal"/></svg>Runners <span id="count" class="count">0</span></h2><span class="panel-caption">LOCAL INSTALLATIONS</span></div>
           <div class="table-toolbar">
-            <label class="search"><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg><input id="search" type="search" aria-label="Search runners" placeholder="Search runners or directories…" autocomplete="off"></label>
-            <select id="status-filter" aria-label="Filter runners by status"><option value="all">All statuses</option><option value="on">On</option><option value="off">Off</option><option value="unknown">Unknown</option></select>
+            <label class="search"><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg><input id="search" type="search" aria-label="Search runners" placeholder="Search names, projects, labels…" autocomplete="off"></label>
+            <select id="status-filter" aria-label="Filter runners by status"><option value="all">All activity</option><option value="busy">Busy</option><option value="idle">Idle</option><option value="offline">Offline</option><option value="unknown">Unknown</option></select>
+            <select id="group-by" aria-label="Group runners"><option value="none">No grouping</option><option value="repository">By repository</option><option value="organization">By organization</option><option value="host">By machine</option><option value="group">By custom group</option><option value="runnerGroup">By runner group</option></select>
           </div>
-          <div class="table-wrap"><table><thead><tr><th scope="col">Runner</th><th scope="col">Directory</th><th scope="col" class="pid-column">PID</th><th scope="col">Status</th></tr></thead><tbody id="runners"></tbody></table></div>
+          <div class="table-wrap"><table><thead><tr><th scope="col">Runner</th><th scope="col" class="target-column">Project</th><th scope="col">Local activity</th><th scope="col">GitHub</th></tr></thead><tbody id="runners"></tbody></table></div>
           <div id="empty" class="empty" hidden><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg><h3 id="empty-title">No runners yet</h3><p id="empty-description"></p></div>
           <div class="table-footer"><span id="visible-count">Waiting for runners…</span><span>Refreshes every 15 seconds</span></div>
         </section>
-        <p class="status-note"><svg class="icon" aria-hidden="true"><use href="#icon-shield"/></svg>“On” means a local runner process is running. It does not confirm a connection to GitHub.</p>
+        <p class="status-note"><svg class="icon" aria-hidden="true"><use href="#icon-shield"/></svg>Local activity and GitHub connectivity are separate checks. Select a runner to see its details.</p>
       </div>
       <aside class="side-column" aria-label="Status and server details">
         <section class="panel activity-panel" aria-labelledby="activity-title">
@@ -73,13 +75,13 @@
             </div>
             <p id="activity-caption">Waiting for the first scan</p>
           </div>
-          <div class="status-legend"><div><span><i class="dot on" aria-hidden="true"></i>On</span><strong id="legend-on">—</strong></div><div><span><i class="dot off" aria-hidden="true"></i>Off</span><strong id="legend-off">—</strong></div><div><span><i class="dot unknown" aria-hidden="true"></i>Unknown</span><strong id="legend-unknown">—</strong></div></div>
+          <div class="status-legend"><div><span><i class="dot busy" aria-hidden="true"></i>Busy</span><strong id="legend-busy">—</strong></div><div><span><i class="dot idle" aria-hidden="true"></i>Idle</span><strong id="legend-idle">—</strong></div><div><span><i class="dot offline" aria-hidden="true"></i>Offline</span><strong id="legend-offline">—</strong></div><div><span><i class="dot unknown" aria-hidden="true"></i>Unknown</span><strong id="legend-unknown">—</strong></div></div>
         </section>
         <section class="panel server-panel" aria-labelledby="server-title">
           <div class="panel-heading"><h2 id="server-title">Server details</h2><svg class="icon" aria-hidden="true"><use href="#icon-server"/></svg></div>
           <div class="server-body">
             <span class="field-label">HOSTNAME</span><h3 id="host">Connecting…</h3>
-            <dl><div class="directory-field"><dt>WATCHED DIRECTORY</dt><dd><code id="root">—</code></dd></div></dl>
+            <dl><div class="directory-field"><dt>WATCHED DIRECTORIES</dt><dd><code id="root">—</code></dd></div></dl>
             <section class="system-info" aria-labelledby="system-title">
               <h4 id="system-title">SYSTEM RESOURCES</h4>
               <div class="resource">
@@ -97,7 +99,7 @@
                 <progress id="disk-meter" max="100" value="0" aria-label="Disk usage" hidden></progress>
                 <p id="disk-detail">Waiting for a reading…</p>
                 <p id="disk-available"></p>
-                <span class="resource-note">Filesystem containing the watched directory</span>
+                <span class="resource-note">Filesystem containing the first watched directory</span>
               </div>
               <dl><div><dt>System uptime</dt><dd id="system-uptime">—</dd></div></dl>
             </section>

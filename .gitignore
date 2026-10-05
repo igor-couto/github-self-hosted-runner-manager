@@ -4,3 +4,4 @@ publish/
 .vs/
 artifacts/
 *.user
+settings.json

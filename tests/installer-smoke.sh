@@ -17,8 +17,12 @@ runners='/srv/runner folders'
 # Runner auto-updates replace bin with an absolute symlink to a versioned folder.
 mkdir -p "$runners/build-one/bin.2.326.0" "$runners/build-one/bin.2.325.0" "$runners/ordinary-folder"
 printf '{"agentName":"pifive2"}\n' >"$runners/.runner"
-printf '{"agentName":"test-runner"}\n' >"$runners/build-one/.runner"
+printf '{"agentId":42,"agentName":"test-runner","gitHubUrl":"https://github.com/example/api","poolName":"Default"}\n' >"$runners/build-one/.runner"
+printf 'actions.runner.example.api.service\n' >"$runners/build-one/.service"
+mkdir -p "$runners/build-one/_diag"
+printf '[2025-07-01 10:03:00Z INFO Terminal] 2025-07-01 10:03:00Z: Job Build API completed with result: Succeeded\n' >"$runners/build-one/_diag/Runner_20250701.log"
 cp /bin/sleep "$runners/build-one/bin.2.326.0/Runner.Listener"
+cp /bin/sleep "$runners/build-one/bin.2.326.0/Runner.Worker"
 cp /bin/sleep "$runners/build-one/bin.2.325.0/Runner.Listener"
 ln -s "$runners/build-one/bin.2.326.0" "$runners/build-one/bin"
 for number in {2..7}; do
@@ -43,8 +47,15 @@ install_app
 systemd-analyze verify /etc/systemd/system/runner-room.service
 curl -fsS http://127.0.0.1:8080/api/runners | jq -e '
     .runners | length == 7 and
-    all(.[]; .status == "off" and .name != "pifive2") and
+    all(.[]; .status == "offline" and .name != "pifive2") and
     any(.[]; .folder == "build-one" and .name == "test-runner")'
+curl -fsS http://127.0.0.1:8080/api/runners | jq -e '
+    .runners[] | select(.folder == "build-one") |
+    .repository == "example/api" and .organization == "example" and
+    .version == "2.326.0" and .operatingSystem == "Linux" and .architecture == "X64" and
+    .serviceState == "active" and .serviceSubState == "running" and
+    .lastJob.name == "Build API" and .lastJob.result == "Succeeded" and
+    .gitHub.status == "not_configured"'
 memory_total=$(awk '/^MemTotal:/ {printf "%.0f\n", $2 * 1024}' /proc/meminfo)
 disk_total=$(df -B1 --output=size "$runners" | tail -n 1 | tr -d ' ')
 curl -fsS http://127.0.0.1:8080/api/runners | jq -e --argjson memory "$memory_total" --argjson disk "$disk_total" '
@@ -61,12 +72,19 @@ sleep 3
 curl -fsS http://127.0.0.1:8080/api/runners | jq -e '
     (.system.cpuUsagePercent | type == "number" and . >= 0 and . <= 100) and
     (.runners | length == 7 and
-    any(.[]; .folder == "build-one" and .status == "on" and .pid != null) and
-    ([.[] | select(.status == "on")] | length == 1))'
+    any(.[]; .folder == "build-one" and .status == "idle" and .pid != null) and
+    ([.[] | select(.status == "idle")] | length == 1))'
+runuser -u runner -- "$runners/build-one/bin/Runner.Worker" 60 &
+worker_pid=$!
+sleep 3
+curl -fsS http://127.0.0.1:8080/api/runners | jq -e '
+    .runners[] | select(.folder == "build-one") | .status == "busy" and .processStatus == "running" and .uptimeSeconds > 0'
+kill "$worker_pid"
+wait "$worker_pid" || true
 kill "$runner_pid"
 wait "$runner_pid" || true
 sleep 3
-curl -fsS http://127.0.0.1:8080/api/runners | jq -e '.runners | length == 7 and all(.[]; .status == "off")'
+curl -fsS http://127.0.0.1:8080/api/runners | jq -e '.runners | length == 7 and all(.[]; .status == "offline")'
 
 old=$(readlink /opt/runner-room/current)
 cp /etc/runner-room/runner-room.env /tmp/original.env
@@ -93,5 +111,22 @@ bash /fixture/install.sh --runners /srv/runner-disk-link --port 8082 --version v
 disk_total=$(df -B1 --output=size /dev/shm/runner-room-disk | tail -n 1 | tr -d ' ')
 curl -fsS http://127.0.0.1:8082/api/runners | jq -e --argjson disk "$disk_total" '
     .root == "/dev/shm/runner-room-disk" and .system.disk.totalBytes == $disk'
+mkdir -p /srv/extra-runners/another
+printf '{"agentName":"extra-runner"}\n' >/srv/extra-runners/another/.runner
+cat >/etc/runner-room/settings.json <<JSON
+{
+  "RunnersRoots": ["$runners", "$runners/build-one", "/srv/extra-runners", "/missing-runners"],
+  "Discovery": { "Recursive": true },
+  "RunnerOverrides": [{"Path":"$runners/build-one","DisplayName":"API build","Group":"Backend"}]
+}
+JSON
+systemctl restart runner-room.service
+for ((attempt=0; attempt<10; attempt++)); do curl -fsS http://127.0.0.1:8082/healthz && break; sleep 1; done
+curl -fsS http://127.0.0.1:8082/api/runners | jq -e '
+    .warning != null and (.roots | length == 3) and
+    (.runners | length == 9 and any(.[]; .displayName == "API build" and .name == "test-runner" and .group == "Backend"))'
+cp /etc/runner-room/settings.json /tmp/original-settings.json
+bash /fixture/install.sh --runners "$runners" --port 8082 --version v0.1.1
+cmp /tmp/original-settings.json /etc/runner-room/settings.json
 systemctl stop runner-room.service
-echo 'PASS: installation, discovery, process status, system metrics, separate filesystem, rollback, update.'
+echo 'PASS: installation, recursive discovery, aliases, metadata, busy/idle/offline, service status, system metrics, rollback, update, settings preservation.'

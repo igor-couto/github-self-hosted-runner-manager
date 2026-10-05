@@ -2,7 +2,7 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /source
 COPY RunnerRoom.csproj global.json ./
 RUN dotnet restore
-COPY Program.cs RunnerMonitor.cs SystemMonitor.cs ./
+COPY *.cs ./
 COPY wwwroot ./wwwroot
 RUN dotnet publish -c Release -o /app --no-restore
 
