@@ -23,6 +23,11 @@ mkdir -p "$runners/build-one/_diag"
 mkdir -p "$runners/build-one/_work"
 head -c 128 /dev/zero >"$runners/build-one/_work/workspace-sample"
 printf '[2025-07-01 10:03:00Z INFO Terminal] 2025-07-01 10:03:00Z: Job Build API completed with result: Succeeded\n' >"$runners/build-one/_diag/Runner_20250701.log"
+history_log="Runner_$(date -u +%Y%m%d-%H%M%S)-utc.log"
+history_start=$(date -u -d '2 minutes ago' '+%Y-%m-%d %H:%M:%SZ')
+history_end=$(date -u -d '1 minute ago' '+%Y-%m-%d %H:%M:%SZ')
+printf '[%s INFO Terminal] Running job: Build API\n[%s INFO Terminal] Job Build API completed with result: Succeeded\n' \
+    "$history_start" "$history_end" >"$runners/build-one/_diag/$history_log"
 cp /bin/sleep "$runners/build-one/bin.2.326.0/Runner.Listener"
 cp /bin/sleep "$runners/build-one/bin.2.326.0/Runner.Worker"
 cp /bin/sleep "$runners/build-one/bin.2.325.0/Runner.Listener"
@@ -112,6 +117,10 @@ jq -e '(.fileSystems | length > 0) and (.topMemory | length > 0) and
 test -s /var/lib/runner-room/monitoring.json
 test "$(stat -c %U /var/lib/runner-room/monitoring.json)" = runner
 grep -qx 'StateDirectory=runner-room' /etc/systemd/system/runner-room.service
+curl -fsS http://127.0.0.1:8080/api/history | jq -e '
+    .summary.completed == 1 and .totalJobs == 1 and .jobs[0].name == "Build API" and .jobs[0].durationSeconds == 60'
+test -s /var/lib/runner-room/analytics.json
+test "$(stat -c %U /var/lib/runner-room/analytics.json)" = runner
 kill "$worker_pid"
 wait "$worker_pid" || true
 kill "$runner_pid"
@@ -131,6 +140,8 @@ curl -fsS http://127.0.0.1:8080/healthz
 install_app --version v0.1.1 --port 8082
 test "$(readlink /opt/runner-room/current)" != "$old"
 curl -fsS http://127.0.0.1:8082/healthz
+curl -fsS http://127.0.0.1:8082/api/history | jq -e '.summary.completed == 1 and .totalJobs == 1'
+curl -fsS http://127.0.0.1:8082/api/history/export | grep -q 'Build API'
 bash /fixture/install.sh --runners "$runners/build-one" --port 8082 --version v0.1.1
 curl -fsS http://127.0.0.1:8082/api/runners | jq -e '
     .runners | length == 1 and .[0].folder == "build-one" and .[0].name == "test-runner"'
@@ -162,4 +173,4 @@ cp /etc/runner-room/settings.json /tmp/original-settings.json
 bash /fixture/install.sh --runners "$runners" --port 8082 --version v0.1.1
 cmp /tmp/original-settings.json /etc/runner-room/settings.json
 systemctl stop runner-room.service
-echo 'PASS: installation, discovery, metadata, job matching, masked logs, permissions, busy/idle/offline, service status, system metrics, rollback, update, settings preservation.'
+echo 'PASS: installation, discovery, metadata, job matching, masked logs, permissions, busy/idle/offline, service status, system metrics, persistent analytics, rollback, update, settings preservation.'

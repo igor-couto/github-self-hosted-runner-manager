@@ -22,6 +22,9 @@
     "WorkspaceScanMinutes": 5,
     "FileSystems": []
   },
+  "Analytics": {
+    "RetentionDays": 30
+  },
   "GitHub": {
     "TokenFile": "/etc/runner-room/github.token"
   }

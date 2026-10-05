@@ -212,6 +212,26 @@ Optional settings in `/etc/runner-room/settings.json`:
 
 Retention is configurable from 1–30 days and workspace intervals from 1–60 minutes. At most 64 filesystem histories and 8,000 interface/day records are retained. For a manual/development installation, `Monitoring.StateDirectory` can select a writable directory; under systemd any custom location must also be writable within its sandbox. The default uses systemd's `STATE_DIRECTORY`, `/var/lib/runner-room` on other Linux launches, or the current account's local application data directory on Windows. Demo mode writes no monitoring history. Windows is useful for the demo; live collection targets Linux.
 
+## History and analytics
+
+The **History & analytics** panel records runner activity in the background every 15 seconds, even while the dashboard is closed. It provides:
+
+- Job history with outcomes, start/completion times and measured durations.
+- Completed jobs, success rate, average/median duration and 95th-percentile duration.
+- Busy, idle, offline and unknown time per runner, with utilization and local availability.
+- Daily completed-job and utilization charts, runner comparisons, date and runner filters.
+- Outcome filtering, 50-row pagination and CSV export of **all** matching jobs.
+
+Date filters and daily buckets use **UTC**; timestamps in the job table use your browser's local time. Outcome filters affect the job table and CSV only. Success rate includes success with issues and excludes skipped/incomplete jobs. Canceled and abandoned jobs count as unsuccessful. Duration statistics use only matched start/end records; the 95th percentile uses the nearest-rank method.
+
+Utilization is busy time divided by observed busy + idle + offline time. Local availability is busy + idle time divided by that same denominator; it does not measure connectivity to GitHub. Unknown states and collection gaps are excluded from both percentages. Coverage includes unknown observations and is measured against the selected interval across all selected retained runners, including time before a runner was discovered. Sampling gaps longer than 45 seconds and gaps across restarts are not filled in. Brief activity between samples may be missed.
+
+Recent local listener summaries are imported automatically: up to five listener files among the 20 most recent diagnostic files, with at most the final 256 KiB read per file. This is not a complete GitHub workflow history. Rotated/deleted logs and incomplete records can leave outcomes or durations unavailable. Durations require a matching start and completion in the same imported excerpt; starts without a completion remain incomplete. Repeated imports are deduplicated. Only redacted job names, outcomes, timestamps, runner names/repositories and aggregated activity are persisted, never raw logs. Configured log redaction applies when importing metadata.
+
+History is saved atomically to **`analytics.json`** in the same state directory as system monitoring, once per minute and on graceful shutdown. Installer updates preserve it. A crash may lose the most recent unsaved minute; an unwritable directory produces a visible warning and collection continues in memory. If a saved file is corrupt or incompatible, it is preserved: back it up, remove it and restart the service to restore persistence. Demo history is isolated and never saved.
+
+Default retention is 30 UTC calendar days, including today. Configure `Analytics.RetentionDays` from 1–90 in settings, or `Analytics__RetentionDays` in the service environment. Capacity is bounded to 20,000 job events and 50,000 runner/hour records; reaching these limits removes the oldest data and shows a warning. Changes require a service restart. No GitHub token is needed.
+
 ## Publishing releases (maintainers only)
 
 The release workflow builds self-contained packages for all three targets and uploads them, their checksums, and `install.sh` to a GitHub Release:
@@ -276,3 +296,5 @@ docker run --rm runner-room-installer-test
 These tests use the actual bundled x64 application and real Linux runner stand-in processes. Release downloads and service supervision are stubbed inside the disposable container; `systemd-analyze verify` checks the generated unit. Tests cover missing arguments, x64/ARM32/ARM64 download selection (including mixed kernel/userspace bitness), checksum failure, first installation, stale parent registration metadata, busy/idle/offline detection through versioned binaries, runner metadata and log summaries, service state parsing, recursive/multiple roots, aliases, failed-update rollback, and settings preservation during updates. The console checks also exercise GitHub responses using a fake HTTP handler, including denied access, invalid data, registration matching, and token isolation. Architecture selection tests stub system identity; they do not execute an ARM binary on the x64 test host.
 
 Detailed monitoring checks cover per-core/load/swap parsing, network and disk rates, counter resets, UTC midnight, history restart/retention/failure, multiple filesystems and bind mounts, process trees/PID reuse, workspace scan limits, temperatures, battery units and Raspberry Pi flags. The installer integration also verifies background collection, live runner resource attribution, workspace sizes and service-owned history files. Hardware parsing uses fixtures; testing in Docker does not validate physical Raspberry Pi sensors or battery hardware.
+
+Analytics checks cover UTC bucket boundaries, sampling gaps, incomplete events, log replay deduplication, duration statistics, filters/pagination, redaction, CSV escaping, retention, restart recovery and persistence failures. Installer integration verifies imported job durations, service-owned analytics files and history preservation through updates.

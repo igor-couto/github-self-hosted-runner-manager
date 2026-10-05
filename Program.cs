@@ -18,6 +18,8 @@ builder.Services.AddSingleton(new GitHubRunnerClient(new HttpClient(new HttpClie
 builder.Services.AddSingleton<RunnerMonitor>();
 builder.Services.AddSingleton<DetailedSystemMonitor>();
 builder.Services.AddHostedService(services => services.GetRequiredService<DetailedSystemMonitor>());
+builder.Services.AddSingleton<AnalyticsService>();
+builder.Services.AddHostedService(services => services.GetRequiredService<AnalyticsService>());
 var app = builder.Build();
 app.Use(async (context, next) =>
 {
@@ -33,4 +35,6 @@ app.MapGet("/api/runners/{id}/logs", async (string id, string? file, RunnerMonit
     await monitor.GetLogsAsync(id, file) is { } logs ? Results.Ok(logs) : Results.NotFound());
 app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }));
 app.MapGet("/api/system", (DetailedSystemMonitor monitor) => monitor.Current is { } snapshot ? Results.Ok(snapshot) : Results.Json(new { message = "Collecting the first system sample." }, statusCode: 503));
+app.MapGet("/api/history", (string? from, string? to, string? runner, string? result, int? page, AnalyticsService history) => history.Get(from, to, runner, result, page));
+app.MapGet("/api/history/export", (string? from, string? to, string? runner, string? result, AnalyticsService history) => history.Get(from, to, runner, result, 1, true));
 app.Run();

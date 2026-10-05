@@ -58,4 +58,5 @@ Check(demo is { LogicalProcessors: 4, CpuUsagePercent: 18.4, Memory: not null, D
 await InventoryChecks.Run(Check);
 await JobLogChecks.Run(Check);
 await MonitoringChecks.Run(Check);
-Console.WriteLine($"PASS: {checks} system, inventory, job, log and detailed monitoring checks.");
+AnalyticsChecks.Run(Check);
+Console.WriteLine($"PASS: {checks} system, inventory, job, log, monitoring and analytics checks.");

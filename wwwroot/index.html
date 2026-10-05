@@ -131,6 +131,27 @@
       <div id="monitor-runner-resources" class="monitor-content" role="tabpanel" aria-labelledby="tab-runner-resources" hidden></div>
       <div class="table-footer">Read-only · Samples every 15 seconds · CPU percentages use one core = 100%</div>
     </section>
+    <section class="panel analytics-panel" aria-labelledby="analytics-title">
+      <div class="panel-heading"><div><span class="field-label">OBSERVED ACTIVITY</span><h2 id="analytics-title">History &amp; analytics</h2></div><button id="history-export" class="secondary-button" type="button" disabled>Export jobs CSV</button></div>
+      <form id="history-controls" class="history-controls">
+        <label>Period<select id="history-period"><option value="7">Last 7 UTC days</option><option value="1">Today (UTC)</option><option value="30">Last 30 UTC days</option><option value="custom">Custom</option></select></label>
+        <label>From (UTC)<input type="date" id="history-from" required></label>
+        <label>Through (UTC)<input type="date" id="history-to" required></label>
+        <label>Runner<select id="history-runner"><option value="">All runners</option></select></label>
+        <button class="secondary-button" type="submit">Apply dates</button>
+      </form>
+      <p id="history-message" class="monitor-warning" role="status" hidden></p>
+      <div class="monitor-content">
+        <p id="history-coverage" class="detail-hint">Collecting history…</p>
+        <div id="history-summary" class="history-summary"></div>
+        <div class="history-charts"><section><h3 class="monitor-subheading">Completed jobs per day</h3><div id="history-job-chart" class="history-chart"></div></section><section><h3 class="monitor-subheading">Daily runner utilization</h3><div id="history-utilization-chart" class="history-chart"></div></section></div>
+        <h3 class="monitor-subheading">Runner comparison</h3><div id="history-runners"></div>
+        <div class="history-job-heading"><h3 class="monitor-subheading">Job history</h3><label>Job outcome<select id="history-result"><option value="">All outcomes</option><option>Succeeded</option><option>SucceededWithIssues</option><option>Failed</option><option>Canceled</option><option>Skipped</option><option>Abandoned</option><option value="Incomplete">Completion not observed</option></select></label></div>
+        <div id="history-jobs"></div>
+        <div class="history-pagination"><button id="history-previous" type="button" class="secondary-button" disabled>Previous</button><span id="history-page" class="detail-hint"></span><button id="history-next" type="button" class="secondary-button" disabled>Next</button></div>
+        <p class="detail-hint">Local availability measures running processes, not GitHub connectivity. Unknown states and collection gaps are excluded from percentages. Job records come from retained listener summaries; missing events can leave outcomes or durations unavailable. Outcome filters apply to the job list and CSV; charts and totals describe all outcomes.</p>
+      </div>
+    </section>
   </main>
   <dialog id="log-dialog" aria-labelledby="log-title">
     <div class="log-heading"><div><span class="field-label">RUNNER DIAGNOSTICS</span><h2 id="log-title">Runner logs</h2></div><button id="log-close" type="button" class="secondary-button" aria-label="Close logs">Close ✕</button></div>
@@ -147,5 +168,6 @@
   </dialog>
   <script src="/logs.js" defer></script>
   <script src="/monitoring.js" defer></script>
+  <script src="/history.js" defer></script>
 </body>
 </html>
