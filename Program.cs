@@ -27,5 +27,7 @@ app.Use(async (context, next) =>
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.MapGet("/api/runners", (RunnerMonitor monitor) => monitor.GetSnapshotAsync());
+app.MapGet("/api/runners/{id}/logs", async (string id, string? file, RunnerMonitor monitor) =>
+    await monitor.GetLogsAsync(id, file) is { } logs ? Results.Ok(logs) : Results.NotFound());
 app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }));
 app.Run();

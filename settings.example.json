@@ -13,6 +13,10 @@
       "Group": "Websites"
     }
   ],
+  "Logs": {
+    "Enabled": true,
+    "RedactValues": []
+  },
   "GitHub": {
     "TokenFile": "/etc/runner-room/github.token"
   }

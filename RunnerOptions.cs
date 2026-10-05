@@ -8,6 +8,13 @@ public sealed class RunnerOptions
     public DiscoveryOptions Discovery { get; set; } = new();
     public RunnerOverride[] RunnerOverrides { get; set; } = [];
     public GitHubOptions GitHub { get; set; } = new();
+    public LogOptions Logs { get; set; } = new();
+}
+
+public sealed class LogOptions
+{
+    public bool Enabled { get; set; } = true;
+    public string[] RedactValues { get; set; } = [];
 }
 
 public sealed class DiscoveryOptions
@@ -31,6 +38,7 @@ public sealed class GitHubOptions
 
 public sealed record RunnerInfo(string Name, string Folder, string Status, int? Pid)
 {
+    public string Id => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(Path))).ToLowerInvariant();
     public string Path { get; init; } = "";
     public string DisplayName { get; init; } = Name;
     public string Host { get; init; } = Environment.MachineName;
@@ -45,6 +53,9 @@ public sealed record RunnerInfo(string Name, string Folder, string Status, int? 
     public string? RunnerGroup { get; init; }
     public string ProcessStatus { get; init; } = "unknown";
     public double? UptimeSeconds { get; init; }
+    public int? WorkerPid { get; init; }
+    public DateTimeOffset? WorkerStartedAt { get; init; }
+    public CurrentJob? CurrentJob { get; init; }
     public string? ServiceName { get; init; }
     public string ServiceState { get; init; } = "not_configured";
     public string? ServiceSubState { get; init; }

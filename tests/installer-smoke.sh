@@ -76,15 +76,33 @@ curl -fsS http://127.0.0.1:8080/api/runners | jq -e '
     ([.[] | select(.status == "idle")] | length == 1))'
 runuser -u runner -- "$runners/build-one/bin/Runner.Worker" 60 &
 worker_pid=$!
+worker_log="Worker_$(date -u +%Y%m%d-%H%M%S)-utc.log"
+job_time=$(date -u '+%Y-%m-%d %H:%M:%SZ')
+cat >"$runners/build-one/_diag/$worker_log" <<LOG
+[$job_time INFO Worker] Job message:
+{"jobDisplayName":"Live build","variables":{"secret":{"value":"do-not-expose","isSecret":true}},"contextData":{"github":{"t":2,"d":[{"k":"repository","v":"example/api"},{"k":"workflow","v":"CI"},{"k":"ref","v":"refs/heads/main"},{"k":"run_id","v":"42"}]}}}
+[$job_time INFO StepsRunner] Processing step: DisplayName='Compile'
+[$job_time WARN ActionRunner] Cache unavailable
+[$job_time ERR ActionRunner] Authorization: Bearer do-not-expose
+LOG
 sleep 3
 curl -fsS http://127.0.0.1:8080/api/runners | jq -e '
-    .runners[] | select(.folder == "build-one") | .status == "busy" and .processStatus == "running" and .uptimeSeconds > 0'
+    .runners[] | select(.folder == "build-one") | .status == "busy" and .processStatus == "running" and .uptimeSeconds > 0 and
+    .currentJob.name == "Live build" and .currentJob.workflow == "CI" and .currentJob.steps[0].name == "Compile"'
+runner_id=$(curl -fsS http://127.0.0.1:8080/api/runners | jq -r '.runners[] | select(.folder == "build-one") | .id')
+curl -fsS "http://127.0.0.1:8080/api/runners/$runner_id/logs" >/tmp/job-logs.json
+jq -e '.excerpt.lines | length == 4 and any(.[]; .message == "[Sensitive diagnostic line omitted]")' /tmp/job-logs.json
+if grep -q 'do-not-expose' /tmp/job-logs.json; then echo 'Secret exposed in logs'; exit 1; fi
+curl -fsS "http://127.0.0.1:8080/api/runners/$runner_id/logs?file=..%2F.credentials" | jq -e '.excerpt.lines | length == 0'
+chmod 000 "$runners/build-one/_diag/$worker_log"
+curl -fsS "http://127.0.0.1:8080/api/runners/$runner_id/logs" | jq -e '.excerpt.lines | length == 0'
+chmod 644 "$runners/build-one/_diag/$worker_log"
 kill "$worker_pid"
 wait "$worker_pid" || true
 kill "$runner_pid"
 wait "$runner_pid" || true
 sleep 3
-curl -fsS http://127.0.0.1:8080/api/runners | jq -e '.runners | length == 7 and all(.[]; .status == "offline")'
+curl -fsS http://127.0.0.1:8080/api/runners | jq -e '.runners | length == 7 and all(.[]; .status == "offline" and .currentJob == null)'
 
 old=$(readlink /opt/runner-room/current)
 cp /etc/runner-room/runner-room.env /tmp/original.env
@@ -129,4 +147,4 @@ cp /etc/runner-room/settings.json /tmp/original-settings.json
 bash /fixture/install.sh --runners "$runners" --port 8082 --version v0.1.1
 cmp /tmp/original-settings.json /etc/runner-room/settings.json
 systemctl stop runner-room.service
-echo 'PASS: installation, recursive discovery, aliases, metadata, busy/idle/offline, service status, system metrics, rollback, update, settings preservation.'
+echo 'PASS: installation, discovery, metadata, job matching, masked logs, permissions, busy/idle/offline, service status, system metrics, rollback, update, settings preservation.'

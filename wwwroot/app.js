@@ -73,6 +73,7 @@ function badge(status, text) {
 }
 function runnerDetails(runner) {
   const box = element("div", "runner-details");
+  box.append(currentJobPanel(runner));
   const fields = element("dl", "detail-grid");
   const add = (label, value) => {
     const field = element("div");
@@ -118,6 +119,52 @@ function runnerDetails(runner) {
     } catch { /* Missing registration URL. */ }
   }
   return box;
+}
+function currentJobPanel(runner) {
+  const section = element("section", "current-job");
+  const header = element("div", "job-heading");
+  header.append(element("h3", "", "Current job"));
+  const logs = element("button", "secondary-button", "View logs");
+  logs.type = "button";
+  logs.addEventListener("click", () => openRunnerLogs(runner));
+  header.append(logs); section.append(header);
+  const job = runner.currentJob;
+  if (!job) {
+    section.append(element("p", "detail-hint", runner.status === "busy" ? "A worker is running; job details are unavailable." :
+      runner.status === "unknown" ? "Current job cannot be determined with the available process visibility." : "No job running."));
+    return section;
+  }
+  const title = element("div", "job-title");
+  title.append(badge("busy", job.status === "finishing" ? "Finishing" : "Running"), element("strong", "", job.name), element("span", "job-elapsed", jobDuration(job.elapsedSeconds)));
+  section.append(title);
+  const fields = element("dl", "detail-grid job-grid");
+  for (const [label, value] of [["Workflow", job.workflow], ["Repository", job.repository], ["Branch / ref", job.ref],
+    ["Commit", job.commit], ["Triggered by", [job.actor, job.event].filter(Boolean).join(" · ")], ["Worker started", dateTime(job.startedAt)]]) {
+    const field = element("div"); field.append(element("dt", "", label), element("dd", "", value || "Unavailable")); fields.append(field);
+  }
+  section.append(fields);
+  if (job.steps.length) {
+    section.append(element("h4", "detail-label", "Observed steps"));
+    const steps = element("ol", "job-steps");
+    for (const step of job.steps) {
+      const row = element("li", `job-step ${step.status}`);
+      row.append(element("span", "step-name", step.name), element("span", "step-state", step.status),
+        element("span", "step-time", jobDuration(Math.max(0, ((step.completedAt ? Date.parse(step.completedAt) : step.status === "running" ? Date.parse(snapshot.checkedAt) : NaN) - Date.parse(step.startedAt)) / 1000))));
+      steps.append(row);
+    }
+    section.append(steps);
+  } else section.append(element("p", "detail-hint", "Waiting for step events…"));
+  if (job.message) section.append(element("p", "detail-hint", job.message));
+  if (job.runUrl && /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/actions\/runs\/\d+$/.test(job.runUrl)) {
+    const link = element("a", "project-link", "Open workflow and full job output on GitHub ↗");
+    link.href = job.runUrl; link.target = "_blank"; link.rel = "noopener noreferrer"; section.append(link);
+  }
+  return section;
+}
+function jobDuration(seconds) {
+  if (!Number.isFinite(seconds)) return "Unavailable";
+  seconds = Math.max(0, Math.floor(seconds));
+  return seconds >= 3600 ? `${Math.floor(seconds / 3600)}h ${Math.floor(seconds / 60) % 60}m` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 }
 function render() {
   renderSystem(snapshot.system);

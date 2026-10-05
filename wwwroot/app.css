@@ -303,3 +303,49 @@ dd { color: var(--secondary); margin: 0; font-size: 11px; text-align: right; }
   .runner-details { padding: 17px; }
   .detail-row > td { display: table-cell; }
 }
+/* Current jobs and diagnostics. */
+.current-job { margin-bottom: 24px; padding-bottom: 22px; border-bottom: 1px solid var(--border); }
+.job-heading, .log-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.job-heading h3 { font-size: 13px; margin: 0; }
+.secondary-button { padding: 8px 12px; color: var(--secondary); border: 1px solid var(--border); border-radius: 4px; background: var(--surface-raised); font-size: 11px; }
+.secondary-button:hover { color: var(--text); border-color: var(--blue); }
+.job-title { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 20px 0; font-size: 13px; }
+.job-elapsed { color: var(--blue-text); font-variant-numeric: tabular-nums; margin-left: auto; }
+.job-grid { margin-bottom: 20px; }
+.job-steps { list-style: none; padding: 0; margin: 12px 0; }
+.job-step { display: flex; align-items: baseline; gap: 14px; padding: 10px 12px; margin: 5px 0; background: var(--surface); border-left: 2px solid var(--border); font-size: 11px; }
+.job-step.running { border-color: var(--blue); }
+.job-step.succeeded { border-color: var(--on); }
+.job-step.failed, .job-step.warning { border-color: var(--warning); }
+.step-name { flex: 1; overflow-wrap: anywhere; }
+.step-state { color: var(--muted); text-transform: capitalize; }
+.running .step-state { color: var(--blue-text); }
+.succeeded .step-state { color: var(--on); }
+.step-time { color: var(--muted); white-space: nowrap; }
+#log-dialog { width: min(1100px, calc(100vw - 40px)); max-height: calc(100dvh - 40px); padding: 24px; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 20px 70px #0006; }
+#log-dialog::backdrop { background: #0c1522c9; }
+.log-heading h2 { font-size: 20px; margin: 8px 0; overflow-wrap: anywhere; }
+.log-description { margin: 12px 0 20px; }
+.log-toolbar { display: flex; gap: 12px; flex-wrap: wrap; }
+.log-toolbar label { display: flex; flex-direction: column; gap: 8px; font-size: 11px; color: var(--muted); min-width: 0; flex: 1; }
+.log-toolbar .log-file-label { flex: 2; }
+.log-toolbar select, .log-toolbar input { width: 100%; max-width: none; min-width: 0; color: var(--text); border: 1px solid var(--border); border-radius: 4px; background: var(--surface-inset); padding: 10px; font-size: 11px; }
+.log-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+.log-follow { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--secondary); }
+#log-status { overflow-wrap: anywhere; }
+.log-output { height: min(45dvh, 480px); min-height: 160px; overflow: auto; background: var(--surface-inset); border: 1px solid var(--border); border-radius: 4px; padding: 10px; font: 11px/1.8 ui-monospace, Consolas, monospace; }
+.log-line { display: grid; grid-template-columns: 86px 40px minmax(0, 1fr); gap: 10px; padding: 3px 4px; }
+.log-time, .log-level { color: var(--muted); }
+.log-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.log-warn { background: var(--warning-bg); }
+.log-warn .log-level, .log-err .log-level { color: var(--warning); font-weight: 700; }
+.log-err { border-left: 2px solid var(--warning); background: var(--warning-bg); }
+.log-empty { color: var(--muted); padding: 20px; }
+@media (max-width: 600px) {
+  #log-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); padding: 16px; }
+  .log-heading h2 { font-size: 16px; }
+  .log-toolbar .log-file-label { flex-basis: 100%; }
+  .log-line { grid-template-columns: 65px 32px minmax(0, 1fr); gap: 5px; font-size: 10px; }
+  .log-actions { gap: 7px; }
+  .job-step { gap: 8px; padding: 9px; }
+}

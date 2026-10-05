@@ -56,4 +56,5 @@ var demo = new SystemMonitor(missingPath).Read(missingPath, true);
 Check(demo is { LogicalProcessors: 4, CpuUsagePercent: 18.4, Memory: not null, Disk: not null },
     "Demo mode must use explicit sample metrics even without system access.");
 await InventoryChecks.Run(Check);
-Console.WriteLine($"PASS: {checks} system and runner inventory checks.");
+await JobLogChecks.Run(Check);
+Console.WriteLine($"PASS: {checks} system, inventory, job and log checks.");

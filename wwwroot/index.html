@@ -110,5 +110,19 @@
       </aside>
     </div>
   </main>
+  <dialog id="log-dialog" aria-labelledby="log-title">
+    <div class="log-heading"><div><span class="field-label">RUNNER DIAGNOSTICS</span><h2 id="log-title">Runner logs</h2></div><button id="log-close" type="button" class="secondary-button" aria-label="Close logs">Close ✕</button></div>
+    <p class="detail-hint log-description">Local listener and worker diagnostics. Multiline payloads are omitted and common secrets are masked. Review before sharing.</p>
+    <div class="log-toolbar">
+      <label class="log-file-label">Log file<select id="log-file"><option value="">Follow current / latest</option></select></label>
+      <label>Search<input id="log-search" type="search" placeholder="Find in this excerpt…"></label>
+      <label>Level<select id="log-level"><option value="all">All levels</option><option value="warnings">Warnings + errors</option><option value="ERR">Errors</option></select></label>
+    </div>
+    <div class="log-actions"><button id="log-pause" type="button" class="secondary-button" aria-pressed="false">Pause updates</button><button id="log-refresh" type="button" class="secondary-button">Refresh logs</button><label class="log-follow"><input id="log-follow" type="checkbox" checked> Follow latest lines</label><button id="log-download" type="button" class="secondary-button">Download excerpt</button></div>
+    <p id="log-status" class="detail-hint" role="status"></p>
+    <div id="log-output" class="log-output" tabindex="0" role="region" aria-label="Diagnostic log excerpt"></div>
+    <p id="log-note" class="detail-hint"></p>
+  </dialog>
+  <script src="/logs.js" defer></script>
 </body>
 </html>

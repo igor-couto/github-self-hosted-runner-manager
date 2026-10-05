@@ -60,6 +60,8 @@ internal static class RunnerRuntime
         return runner with
         {
             Pid = process?.Pid,
+            WorkerPid = worker?.Pid,
+            WorkerStartedAt = worker?.StartedAt,
             ProcessStatus = process is not null ? "running" : snapshot.Reliable ? "stopped" : "unknown",
             Status = worker is not null ? "busy" : !snapshot.Reliable ? "unknown" : listener is not null ? "idle" : "offline",
             UptimeSeconds = process?.StartedAt is { } start ? Math.Max(0, (now - start).TotalSeconds) : null
