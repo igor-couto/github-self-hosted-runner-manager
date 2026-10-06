@@ -11,6 +11,7 @@ public sealed class RunnerOptions
     public LogOptions Logs { get; set; } = new();
     public MonitoringOptions Monitoring { get; set; } = new();
     public AnalyticsOptions Analytics { get; set; } = new();
+    public AlertOptions Alerts { get; set; } = new();
 }
 
 public sealed class AnalyticsOptions

@@ -232,6 +232,51 @@ History is saved atomically to **`analytics.json`** in the same state directory 
 
 Default retention is 30 UTC calendar days, including today. Configure `Analytics.RetentionDays` from 1–90 in settings, or `Analytics__RetentionDays` in the service environment. Capacity is bounded to 20,000 job events and 50,000 runner/hour records; reaching these limits removes the oldest data and shows a warning. Changes require a service restart. No GitHub token is needed.
 
+## Alerts and scheduled checks
+
+The **Alerts & scheduled checks** panel shows active incidents, recovered alerts, configured rules, unavailable readings and the next scheduled check. Checks run automatically every **60 seconds**, including while the page is closed. **Check now** requests an extra check; requests are limited to one per ten seconds and never overlap an ongoing check. The dashboard still refreshes every 15 seconds. Checks inspect local data; they never start, stop or restart runners.
+
+Default rules:
+
+| Condition | Threshold | Must remain observed for |
+| --- | --- | --- |
+| Runner offline | No local listener/worker process | 120 seconds |
+| Long-running job | Worker age ≥ 60 minutes | 120 seconds |
+| Repeated job failures | ≥ 3 failed/abandoned jobs in the last 15 minutes | Immediate |
+| CPU / RAM usage | ≥ 90% | 120 seconds |
+| Disk usage | ≥ 90% per monitored filesystem | 120 seconds |
+| Temperature | Hottest available CPU/system sensor ≥ 80°C | 120 seconds |
+| Monitoring unavailable | Runner or detailed system snapshot missing/stale | 120 seconds |
+
+Unknown readings never resolve existing alerts. A missing runner or filesystem becomes **unconfirmed**, and missing data resets a pending condition's delay. A gap longer than twice the check interval plus ten seconds also resets pending delays. Sustained conditions are inferred from consecutive checks; brief changes between samples may be missed. Disabled/edited rules retire their existing incidents without claiming recovery. On restart, active incidents are revalidated before notifications resume. Pending delays restart from zero. Failure alerts depend on available local job summaries, not complete GitHub workflow history.
+
+Configure the following in `/etc/runner-room/settings.json` and restart the service:
+
+```json
+"Alerts": {
+  "Enabled": true,
+  "CheckIntervalSeconds": 60,
+  "RepeatMinutes": 60,
+  "RetentionDays": 30,
+  "QuietHoursStartUtc": "22:00",
+  "QuietHoursEndUtc": "07:00",
+  "WebhookUrlFile": "/etc/runner-room/alerts-webhook.url",
+  "Rules": [
+    { "Id": "offline", "Kind": "runner-offline", "HoldSeconds": 120 },
+    { "Id": "build-duration", "Kind": "job-duration", "Threshold": 45, "HoldSeconds": 60, "Target": "build-one" },
+    { "Id": "disk", "Kind": "disk", "Threshold": 90, "HoldSeconds": 120, "Severity": "critical", "Target": "/" }
+  ]
+}
+```
+
+Omit `Rules` or leave it empty for all default rules; a nonempty list replaces the defaults. Supported kinds are `runner-offline`, `job-duration`, `job-failures`, `cpu`, `memory`, `disk`, `temperature` and `monitor-unavailable`. IDs must be unique lowercase letters/digits/hyphens. Severity is `warning` (default) or `critical`. `Target` optionally matches a runner's folder name/absolute path for runner rules or an exact mount path for disk rules; other rules are host-wide. Invalid or duplicate rules are skipped with a visible warning. Up to 32 rules are supported. Check intervals are clamped to 15–3600 seconds, retention to 1–90 days, and repeat intervals to 0–10080 minutes. Zero repeats disables reminders. Hold delays range from 0–86400 seconds.
+
+**Notifications are dashboard-only by default.** Optionally put a generic HTTPS webhook destination in `WebhookUrlFile`, readable by the service account (for example, owner `github-runner`, mode `600`). Alternatively set `Alerts__WebhookUrl` in the service environment. Destination URLs are never returned by the API. Delivery uses JSON POSTs with `source`, `incidentId`, `state`, `rule`, `severity`, `title`, `detail`, `firedAt` and `resolvedAt`. This generic payload requires a compatible receiver or a translation service; it is not a native Slack/Discord/email adapter. Redirects are not followed, and requests time out after five seconds. Delivery is limited to ten queued incidents per check. No external notifications are sent in demo mode.
+
+Each incident sends an initial notification, optional reminders while still firing, and recovery if the initial notification was delivered. Failed sends retry after five minutes. Delivery is best-effort with possible duplicates if the service stops after sending but before saving; receivers can deduplicate by incident ID and state (while allowing reminders if desired). Recovery before any successful delivery cancels the pending initial notification. Quiet hours use UTC, may cross midnight, and pause external delivery while checks and recording continue. Invalid quiet-hour settings pause external delivery with a warning. Remove both quiet-hour values to disable the window. There is no runner maintenance or workflow scheduling.
+
+Alert state and delivery markers are saved atomically after checks to `alerts.json` in the monitoring state directory. Installer updates preserve this file. Up to 500 active incidents and 2,000 total records are retained; the dashboard returns the latest 200 closed incidents. Unwritable storage falls back to memory with a warning. Corrupt saved files are preserved; back up and remove the file, then restart to restore persistence. The dashboard has no authentication, so every user who can reach it can view alerts and request checks; notification destinations and rules can only be changed in server configuration.
+
 ## Publishing releases (maintainers only)
 
 The release workflow builds self-contained packages for all three targets and uploads them, their checksums, and `install.sh` to a GitHub Release:

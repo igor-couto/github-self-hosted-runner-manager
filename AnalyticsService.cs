@@ -62,6 +62,7 @@ public sealed class AnalyticsService(RunnerOptions options, RunnerMonitor monito
         if (!export) return Results.Ok(report);
         return Results.File(Encoding.UTF8.GetBytes(Csv(report)), "text/csv; charset=utf-8", "runner-room-job-history.csv");
     }
+    internal AnalyticsReport RecentJobs(DateTimeOffset now) => store.Query(now.AddMinutes(-15), now.AddTicks(1), null, null, 1, allJobs: true);
     internal static bool TryRange(string? from, string? to, DateTimeOffset now, out DateTimeOffset start, out DateTimeOffset end)
     {
         var today = DateOnly.FromDateTime(now.UtcDateTime);

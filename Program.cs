@@ -20,6 +20,8 @@ builder.Services.AddSingleton<DetailedSystemMonitor>();
 builder.Services.AddHostedService(services => services.GetRequiredService<DetailedSystemMonitor>());
 builder.Services.AddSingleton<AnalyticsService>();
 builder.Services.AddHostedService(services => services.GetRequiredService<AnalyticsService>());
+builder.Services.AddSingleton<AlertService>();
+builder.Services.AddHostedService(services => services.GetRequiredService<AlertService>());
 var app = builder.Build();
 app.Use(async (context, next) =>
 {
@@ -37,4 +39,13 @@ app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }));
 app.MapGet("/api/system", (DetailedSystemMonitor monitor) => monitor.Current is { } snapshot ? Results.Ok(snapshot) : Results.Json(new { message = "Collecting the first system sample." }, statusCode: 503));
 app.MapGet("/api/history", (string? from, string? to, string? runner, string? result, int? page, AnalyticsService history) => history.Get(from, to, runner, result, page));
 app.MapGet("/api/history/export", (string? from, string? to, string? runner, string? result, AnalyticsService history) => history.Get(from, to, runner, result, 1, true));
+app.MapGet("/api/alerts", (AlertService alerts) => alerts.Current());
+app.MapPost("/api/alerts/check", (HttpRequest request, AlertService alerts) =>
+{
+    // JSON-only, same-origin UI action; form posts and cross-origin requests cannot trigger notifications.
+    if (!request.HasJsonContentType() || request.Headers.Origin is { Count: > 0 } origin &&
+        origin.ToString() != $"{request.Scheme}://{request.Host}") return Results.StatusCode(403);
+    return alerts.RequestCheck() ? Results.Accepted(value: new { message = "Check queued." }) :
+        Results.Json(new { message = "Checks are disabled, already running or were just requested." }, statusCode: 429);
+});
 app.Run();

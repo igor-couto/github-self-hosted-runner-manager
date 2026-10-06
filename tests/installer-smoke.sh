@@ -161,7 +161,8 @@ cat >/etc/runner-room/settings.json <<JSON
 {
   "RunnersRoots": ["$runners", "$runners/build-one", "/srv/extra-runners", "/missing-runners"],
   "Discovery": { "Recursive": true },
-  "RunnerOverrides": [{"Path":"$runners/build-one","DisplayName":"API build","Group":"Backend"}]
+  "RunnerOverrides": [{"Path":"$runners/build-one","DisplayName":"API build","Group":"Backend"}],
+  "Alerts": {"CheckIntervalSeconds":15,"Rules":[{"Id":"offline","Kind":"runner-offline","HoldSeconds":0,"Target":"build-one"}]}
 }
 JSON
 systemctl restart runner-room.service
@@ -169,8 +170,27 @@ for ((attempt=0; attempt<10; attempt++)); do curl -fsS http://127.0.0.1:8082/hea
 curl -fsS http://127.0.0.1:8082/api/runners | jq -e '
     .warning != null and (.roots | length == 3) and
     (.runners | length == 9 and any(.[]; .displayName == "API build" and .name == "test-runner" and .group == "Backend"))'
+# Real scheduled checks run independently of HTTP reads and preserve incidents across updates.
+for ((attempt=0; attempt<10; attempt++)); do
+    if curl -fsS http://127.0.0.1:8082/api/alerts >/tmp/alerts.json && jq -e '.active | length == 1' /tmp/alerts.json >/dev/null; then break; fi
+    sleep 1
+done
+jq -e '.checkIntervalSeconds == 15 and .notificationChannel == "Dashboard only" and (.rules | length == 1)' /tmp/alerts.json
+alert_id=$(jq -r '.active[0].id' /tmp/alerts.json)
+runuser -u runner -- "$runners/build-one/bin/Runner.Listener" 60 &
+alert_runner_pid=$!
+for ((attempt=0; attempt<22; attempt++)); do
+    if curl -fsS http://127.0.0.1:8082/api/alerts | jq -e --arg id "$alert_id" '.history | any(.[]; .id == $id and .state == "resolved")' >/dev/null; then break; fi
+    sleep 1
+done
+curl -fsS http://127.0.0.1:8082/api/alerts | jq -e --arg id "$alert_id" '.history | any(.[]; .id == $id and .state == "resolved")'
+kill "$alert_runner_pid"
+wait "$alert_runner_pid" || true
+test -s /var/lib/runner-room/alerts.json
+test "$(stat -c %U /var/lib/runner-room/alerts.json)" = runner
 cp /etc/runner-room/settings.json /tmp/original-settings.json
 bash /fixture/install.sh --runners "$runners" --port 8082 --version v0.1.1
 cmp /tmp/original-settings.json /etc/runner-room/settings.json
+curl -fsS http://127.0.0.1:8082/api/alerts | jq -e --arg id "$alert_id" '.history | any(.[]; .id == $id and .state == "resolved")'
 systemctl stop runner-room.service
-echo 'PASS: installation, discovery, metadata, job matching, masked logs, permissions, busy/idle/offline, service status, system metrics, persistent analytics, rollback, update, settings preservation.'
+echo 'PASS: installation, discovery, metadata, jobs/logs, process states, metrics, analytics, scheduled alerts/recovery, rollback, updates and settings/history preservation.'

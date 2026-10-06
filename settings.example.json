@@ -25,6 +25,16 @@
   "Analytics": {
     "RetentionDays": 30
   },
+  "Alerts": {
+    "Enabled": true,
+    "CheckIntervalSeconds": 60,
+    "RepeatMinutes": 60,
+    "RetentionDays": 30,
+    "QuietHoursStartUtc": null,
+    "QuietHoursEndUtc": null,
+    "WebhookUrlFile": null,
+    "Rules": []
+  },
   "GitHub": {
     "TokenFile": "/etc/runner-room/github.token"
   }

@@ -131,6 +131,20 @@
       <div id="monitor-runner-resources" class="monitor-content" role="tabpanel" aria-labelledby="tab-runner-resources" hidden></div>
       <div class="table-footer">Read-only · Samples every 15 seconds · CPU percentages use one core = 100%</div>
     </section>
+    <section class="panel alerts-panel" aria-labelledby="alerts-title">
+      <div class="panel-heading"><div><span class="field-label">AUTOMATED HEALTH CHECKS</span><h2 id="alerts-title">Alerts &amp; scheduled checks</h2></div><button id="alerts-check" class="secondary-button" type="button" disabled>Check now</button></div>
+      <div class="monitor-content">
+        <p id="alerts-warning" class="monitor-warning" role="status" hidden></p>
+        <div id="alerts-summary" class="monitor-grid"></div>
+        <p id="alerts-schedule" class="detail-hint">Loading scheduled checks…</p>
+        <div class="history-job-heading"><h3 class="monitor-subheading">Active alerts</h3><label>Filter alerts<select id="alerts-severity"><option value="">All severities</option><option value="critical">Critical</option><option value="warning">Warning</option></select></label></div>
+        <div id="alerts-active" class="alerts-active" aria-live="polite"></div>
+        <details class="alerts-rules"><summary>Configured rules &amp; readings</summary><div id="alerts-rules"></div><p class="detail-hint">Edit Alerts in the server settings file and restart the service to change rules, thresholds, check frequency or notification delivery. Missing readings never count as healthy.</p></details>
+        <h3 class="monitor-subheading">Recent alert history</h3>
+        <div id="alerts-history"></div>
+        <p class="detail-hint">Checks continue when this page is closed. Quiet hours pause external delivery; alerts are still recorded. Availability is based on local runner processes. No runners are started, stopped or restarted.</p>
+      </div>
+    </section>
     <section class="panel analytics-panel" aria-labelledby="analytics-title">
       <div class="panel-heading"><div><span class="field-label">OBSERVED ACTIVITY</span><h2 id="analytics-title">History &amp; analytics</h2></div><button id="history-export" class="secondary-button" type="button" disabled>Export jobs CSV</button></div>
       <form id="history-controls" class="history-controls">
@@ -169,5 +183,6 @@
   <script src="/logs.js" defer></script>
   <script src="/monitoring.js" defer></script>
   <script src="/history.js" defer></script>
+  <script src="/alerts.js" defer></script>
 </body>
 </html>

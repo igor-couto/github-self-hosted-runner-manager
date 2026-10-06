@@ -398,6 +398,25 @@ dd { color: var(--secondary); margin: 0; font-size: 11px; text-align: right; }
   .monitoring-panel .panel-caption { max-width: 110px; text-align: right; line-height: 1.7; }
 }
 /* Persisted runner history and analytics. */
+.alerts-panel { margin-top: 26px; }
+.alerts-panel .panel-heading { flex-wrap: wrap; }
+.alerts-panel h2 { margin-top: 8px; }
+.alerts-active { display: grid; gap: 12px; }
+.alert-card { background: var(--surface-inset); border: 1px solid var(--border); border-left: 3px solid var(--warning); padding: 16px; border-radius: 4px; }
+.alert-card.critical { border-left-color: #e87575; }
+.alert-heading { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+.alert-heading h4 { margin: 0; font-size: 13px; overflow-wrap: anywhere; }
+.alert-card p { font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.alert-label { color: var(--warning); text-transform: uppercase; letter-spacing: .5px; font-size: 10px; }
+.alerts-rules { margin-top: 22px; }
+.alerts-rules summary { cursor: pointer; color: var(--blue-text); padding: 12px 0; font-size: 12px; }
+.alerts-rules summary:focus-visible { outline: 2px solid var(--blue); }
+#alerts-history .monitor-table-wrap { max-height: 360px; overflow: auto; }
+.alerts-panel .monitor-table { min-width: 700px; }
+.alerts-panel .monitor-table-wrap:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+@media(max-width:600px) {
+  #alerts-summary > :last-child { grid-column: 1 / -1; }
+}
 .analytics-panel { margin-top: 26px; }
 .analytics-panel .panel-heading { flex-wrap: wrap; }
 .analytics-panel h2 { margin-top: 8px; }
