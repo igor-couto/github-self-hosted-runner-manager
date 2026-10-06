@@ -77,12 +77,23 @@ button:disabled { opacity: .6; cursor: wait; }
 .theme-toggle .moon, :root[data-theme="light"] .theme-toggle .sun { display: none; }
 :root[data-theme="light"] .theme-toggle .moon { display: block; }
 .workspace-bar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 0 36px; height: 49px; background: var(--topbar); border-bottom: 1px solid var(--border); }
-.workspace-tabs { display: flex; align-self: stretch; gap: 24px; }
+.workspace-tabs { display: flex; align-self: stretch; gap: 24px; min-width: 0; max-width: 100%; overflow-x: auto; }
 .workspace-tab { align-self: stretch; display: flex; align-items: center; gap: 9px; padding: 0 2px; background: transparent; border: 0; border-bottom: 2px solid transparent; border-radius: 0; font-size: 10px; font-weight: 650; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
 .workspace-tab:hover { color: var(--text); border-bottom-color: var(--muted); }
 .workspace-tab[aria-selected="true"] { color: var(--blue-text); border-bottom-color: var(--blue); }
 .workspace-tab:focus-visible { outline-offset: -4px; }
 .workspace-tab .icon { width: 14px; height: 14px; }
+.workspace-tab { flex-shrink: 0; }
+.access-session { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--secondary); margin-bottom: 20px; font-size: 12px; }
+.login-page { display: grid; min-height: 100vh; place-items: center; padding: 24px; }
+.login-card { width: 100%; max-width: 430px; margin: 0; padding: 28px; }
+.login-brand { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 30px; color: var(--blue-text); font-size: 12px; letter-spacing: 1px; }
+.login-card form { display: grid; gap: 18px; margin-top: 24px; }
+.login-card label { display: grid; gap: 8px; color: var(--secondary); font-size: 12px; }
+.login-card input { width: 100%; min-width: 0; padding: 12px; color: var(--text); border: 1px solid var(--border); border-radius: 4px; background: var(--surface-inset); }
+.login-github { display: block; text-align: center; padding: 12px; margin-top: 24px; background: var(--surface-raised); border: 1px solid var(--border); border-radius: 4px; color: var(--text); text-decoration: none; }
+#workspace-integration h2 { margin-top: 8px; }
+#integration-audit .monitor-table-wrap { max-height: 400px; overflow: auto; }
 .connection { display: flex; align-items: center; color: var(--muted); font-size: 11px; }
 .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto; margin-right: 7px; vertical-align: 1px; background: var(--off); }
 .dot.on { background: var(--on); }

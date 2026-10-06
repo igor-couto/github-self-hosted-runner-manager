@@ -77,7 +77,7 @@ sudo journalctl -u runner-room -n 50 --no-pager
 
 The service runs as the selected account. Application files live under `/opt/runner-room/releases`, with `/opt/runner-room/current` pointing to the active installation. Previous versions are retained for rollback. The installer only manages Runner Room; it does not change your GitHub runner services.
 
-This prototype has no login and is intended for a trusted LAN. If your firewall blocks the chosen port, allow it from your home subnet. The installer does not change firewall rules or expose the dashboard through your router.
+Access is open to your trusted LAN by default. Enable the optional sign-in and permissions described below to restrict access. If your firewall blocks the chosen port, allow it from your home subnet. The installer does not change firewall rules or expose the dashboard through your router.
 
 ## What the status means
 
@@ -109,7 +109,7 @@ Current job details require a visible `Runner.Worker` process with a readable st
 
 This is a bounded diagnostic viewer, **not the full workflow console output**. Each response reads at most 256 KiB and returns at most 1,000 complete timestamped entries. It omits multiline continuations (including job payloads and stack-trace continuations), oversized entries and partially written final lines. File discovery examines at most 10,000 entries and returns the newest matching filenames within that scan. Rotation, deletion and permission errors show an unavailable state. Files are selected only from the discovered runner's `_diag` folder; arbitrary paths and symlinked files/folders are rejected.
 
-Known GitHub token formats, the configured dashboard token, credential assignments and URL credentials/query strings are masked. **Masking is best effort:** diagnostics can contain other application data or secrets, so review before sharing. Like the dashboard, the viewer is accessible to anyone who can reach it on your LAN. Add custom exact strings to redact, or disable the viewer, in `/etc/runner-room/settings.json`:
+Known GitHub token formats, the configured dashboard token, credential assignments and URL credentials/query strings are masked. **Masking is best effort:** diagnostics can contain other application data or secrets, so review before sharing. When authentication is enabled, diagnostic logs require an admin account; in open LAN mode anyone who can reach the dashboard can view them. Add custom exact strings to redact, or disable the viewer, in `/etc/runner-room/settings.json`:
 
 ```json
 "Logs": {
@@ -275,7 +275,69 @@ Omit `Rules` or leave it empty for all default rules; a nonempty list replaces t
 
 Each incident sends an initial notification, optional reminders while still firing, and recovery if the initial notification was delivered. Failed sends retry after five minutes. Delivery is best-effort with possible duplicates if the service stops after sending but before saving; receivers can deduplicate by incident ID and state (while allowing reminders if desired). Recovery before any successful delivery cancels the pending initial notification. Quiet hours use UTC, may cross midnight, and pause external delivery while checks and recording continue. Invalid quiet-hour settings pause external delivery with a warning. Remove both quiet-hour values to disable the window. There is no runner maintenance or workflow scheduling.
 
-Alert state and delivery markers are saved atomically after checks to `alerts.json` in the monitoring state directory. Installer updates preserve this file. Up to 500 active incidents and 2,000 total records are retained; the dashboard returns the latest 200 closed incidents. Unwritable storage falls back to memory with a warning. Corrupt saved files are preserved; back up and remove the file, then restart to restore persistence. The dashboard has no authentication, so every user who can reach it can view alerts and request checks; notification destinations and rules can only be changed in server configuration.
+Alert state and delivery markers are saved atomically after checks to `alerts.json` in the monitoring state directory. Installer updates preserve this file. Up to 500 active incidents and 2,000 total records are retained; the dashboard returns the latest 200 closed incidents. Unwritable storage falls back to memory with a warning. Corrupt saved files are preserved; back up and remove the file, then restart to restore persistence. In open LAN mode, anyone who can reach the dashboard can view alerts and request checks. With authentication enabled, requesting checks requires an admin account; notification destinations and rules can only be changed in server configuration.
+
+## GitHub integration and access control
+
+The **GitHub & access** workspace tab shows runner API connections, registration IDs, repository/organization scopes, allowed accounts and recent access activity. GitHub API credentials and dashboard sign-in are separate: the existing `GitHub.TokenFile`/`GitHub.Token` provides read-only runner connectivity and labels; OAuth sign-in only identifies a person. No OAuth tokens, client secrets or password hashes are returned to the browser.
+
+Authentication is **opt-in** for compatibility with existing LAN installations. Set `Access.Enabled` to `true` to protect all monitoring APIs and the dashboard. Invalid enabled configuration fails startup; it never falls back to anonymous access. At least one administrator is required. Accounts and roles are managed in server configuration, with changes applied on restart.
+
+| Access | Viewer | Admin |
+| --- | --- | --- |
+| Runner status, system metrics, job summaries, alert/history views and CSV export | Yes | Yes |
+| Raw diagnostic excerpts and downloads | No | Yes |
+| Request an alert check | No | Yes |
+| Integration/account list and access audit | No | Yes |
+
+Roles apply to the whole dashboard, not individual repositories. With authentication disabled, anyone who can reach the dashboard has administrator capabilities. `/healthz` remains public for the installer and service health checks.
+
+### Local accounts
+
+Generate a password hash on the server. The interactive helper hides password input, requires at least 12 characters, and prints only an ASP.NET Identity password hash:
+
+```bash
+sudo -u github-runner /opt/runner-room/current/RunnerRoom --hash-password
+```
+
+Use your actual service account in place of `github-runner`. Add the hash to `/etc/runner-room/settings.json`:
+
+```json
+"Access": {
+  "Enabled": true,
+  "RequireHttps": true,
+  "PublicOrigin": "https://runners.example.net",
+  "SessionHours": 8,
+  "TrustedProxies": ["127.0.0.1"],
+  "LocalUsers": [
+    { "Username": "admin", "PasswordHash": "PASTE_GENERATED_HASH", "Role": "admin" },
+    { "Username": "viewer", "PasswordHash": "PASTE_ANOTHER_HASH", "Role": "viewer" }
+  ]
+}
+```
+
+Serve the application over HTTPS, directly or through your existing reverse proxy. `PublicOrigin` must exactly match the public scheme/host/port and cannot contain a path. If using a proxy, preserve the original Host header and configure only the proxy's exact IP address in `TrustedProxies`; only those peers may supply forwarded protocol/client-address headers. Without a proxy, use an empty list. The installer does not provision certificates or a proxy. For isolated local HTTP testing only, explicitly set `RequireHttps: false` and an `http://` origin; passwords and cookies then travel over HTTP.
+
+### GitHub sign-in
+
+Create a GitHub OAuth app with your dashboard origin as its homepage and **`https://YOUR_DASHBOARD/signin-github`** as its callback. Store its client secret in a file readable only by the service account/administrator, then add these fields alongside the access settings:
+
+```json
+"GitHubClientId": "YOUR_OAUTH_CLIENT_ID",
+"GitHubClientSecretFile": "/etc/runner-room/github-oauth.secret",
+"GitHubUsers": [
+  { "Id": "YOUR_NUMERIC_GITHUB_USER_ID", "Role": "admin" },
+  { "Id": "ANOTHER_NUMERIC_ID", "Role": "viewer" }
+]
+```
+
+Use numeric GitHub user IDs (available from `https://api.github.com/users/YOUR_LOGIN`), not usernames. Renaming an account does not transfer its dashboard access to whoever takes the old name. There is no automatic access for repository collaborators or organization members. Local accounts and GitHub accounts can coexist, or either provider can be used alone.
+
+Sign-in uses the [GitHub authorization-code flow with state and PKCE](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps), followed by the fixed GitHub user API to verify identity. The OAuth flow requests no repository permissions. Access is granted only after the returned numeric ID matches the server allowlist. OAuth tokens are discarded after sign-in; they are not saved in cookies or used to manage runners. GitHub Enterprise and GitHub App installation credentials are not included in this version; runner API access continues using the existing token configuration.
+
+Sessions use [ASP.NET Core cookie authentication](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/cookie?view=aspnetcore-9.0), with HttpOnly/SameSite cookies and a fixed 1–24 hour lifetime (default eight hours). Passwords use the framework's salted password hasher with 600,000 iterations. Changing a local password, removing an account or changing its role invalidates its sessions on subsequent requests after restart. Sign-out clears the current browser's cookie. Persistent data-protection keys live in the private `session-keys` directory beneath the state directory, so ordinary updates preserve valid sessions. Keep that directory private and backed up with the server's state; local account and secret files also need restricted filesystem permissions.
+
+State-changing APIs validate antiforgery tokens. Local sign-in is limited to five attempts per client IP per minute and 30 attempts globally per minute. Only explicitly trusted proxies affect the client IP. Login successes/failures, GitHub login failures, denied admin actions, sign-outs and accepted alert-check requests are recorded in `access-audit.json`. The audit retains up to 1,000 events from the last 30 days; the admin page shows the latest 100. It records account IDs and client addresses, never passwords or tokens. Storage failures are visible in the admin page and fall back to memory. Demo mode keeps audit events in memory and does not load real access history.
 
 ## Publishing releases (maintainers only)
 

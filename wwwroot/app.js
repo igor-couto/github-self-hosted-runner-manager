@@ -127,6 +127,7 @@ function currentJobPanel(runner) {
   header.append(element("h3", "", "Current job"));
   const logs = element("button", "secondary-button", "View logs");
   logs.type = "button";
+  logs.hidden = !window.dashboardAccess?.canAdmin;
   logs.addEventListener("click", () => openRunnerLogs(runner));
   header.append(logs); section.append(header);
   const job = runner.currentJob;
@@ -286,3 +287,4 @@ $("group-by").addEventListener("change", () => { if (snapshot) render(); });
 $("refresh").addEventListener("click", refresh);
 refresh();
 setInterval(refresh, 15000);
+window.addEventListener("access-ready", () => { if (snapshot) render(); });

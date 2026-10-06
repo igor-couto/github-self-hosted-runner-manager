@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sign in · Runner Room</title><link rel="icon" href="data:,"><script src="/theme.js"></script><link rel="stylesheet" href="/app.css"><script src="/login.js" defer></script></head>
+<body class="login-page">
+  <main class="login-card panel">
+    <div class="login-brand">RUNNER ROOM <button id="theme-toggle" type="button" hidden><span id="theme-label">Light theme</span></button></div>
+    <h1>Welcome back</h1><p class="detail-hint">Sign in to view your runners and server.</p>
+    <p id="login-error" class="monitor-warning" role="status" hidden></p>
+    <a id="github-login" class="login-github" href="/auth/github" hidden>Sign in with GitHub</a>
+    <form id="login-form" hidden>
+      <label>Username<input id="login-username" name="username" autocomplete="username" required maxlength="64"></label>
+      <label>Password<input id="login-password" name="password" type="password" autocomplete="current-password" required maxlength="1024"></label>
+      <button id="login-submit" type="submit" class="primary-button">Sign in</button>
+    </form>
+    <p class="detail-hint">Access is limited to accounts configured by your administrator.</p>
+  </main>
+</body></html>

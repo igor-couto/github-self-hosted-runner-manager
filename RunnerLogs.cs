@@ -116,7 +116,9 @@ internal sealed class LogRedactor
         var token = options.GitHub.Token;
         if (string.IsNullOrWhiteSpace(token) && !string.IsNullOrWhiteSpace(options.GitHub.TokenFile))
             token = LocalRunnerReader.ReadSmall(options.GitHub.TokenFile, 8192)?.Trim();
-        values = options.Logs.RedactValues.Append(token ?? "").Where(v => !string.IsNullOrWhiteSpace(v)).Distinct().OrderByDescending(v => v.Length).ToArray();
+        var loginSecret = string.IsNullOrWhiteSpace(options.Access.GitHubClientSecretFile) ? null :
+            LocalRunnerReader.ReadSmall(options.Access.GitHubClientSecretFile, 8192)?.Trim();
+        values = options.Logs.RedactValues.Append(token ?? "").Append(loginSecret ?? "").Where(v => !string.IsNullOrWhiteSpace(v)).Distinct().OrderByDescending(v => v.Length).ToArray();
     }
     internal string Redact(string text)
     {

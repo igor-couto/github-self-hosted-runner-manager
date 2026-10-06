@@ -209,7 +209,7 @@ UNIT
     address=$(hostname -I 2>/dev/null || true); address=${address%% *}
     printf '\nRunner Room is running.\n  Dashboard: http://%s:%s\n  Runners:   %s\n  User:      %s\n  Settings:  %s\n' \
         "${address:-YOUR_SERVER_IP}" "$port" "$runners" "$service_user" "$config"
-    printf '\nIf a firewall is enabled, allow this port from your LAN. The dashboard has no login.\n'
+    printf '\nIf a firewall is enabled, allow this port from your LAN. Configure Access in settings.json to require login; otherwise LAN access is open.\n'
     cleanup
 }
 

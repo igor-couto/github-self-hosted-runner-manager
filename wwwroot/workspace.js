@@ -14,7 +14,8 @@
     try { anchor = decodeURIComponent(location.hash.slice(1)); } catch { anchor = ""; }
     const target = document.getElementById(anchor);
     // Keep existing links to the analytics heading and its controls working.
-    show(anchor === "history" || target?.closest("#workspace-history") ? "history" : "overview");
+    const matching = tabs.find(tab => anchor === tab.dataset.workspace || target?.closest("#" + tab.getAttribute("aria-controls")));
+    show(matching?.dataset.workspace || "overview");
     if (target) requestAnimationFrame(() => target.scrollIntoView());
   }
   function activate(tab) {

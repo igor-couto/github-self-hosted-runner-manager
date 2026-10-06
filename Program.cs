@@ -1,5 +1,10 @@
 using RunnerRoom;
 
+if (args is ["--hash-password"])
+{
+    AccessAccounts.HashPasswordCommand();
+    return;
+}
 // The installer checks the bundled runtime before replacing a working installation.
 if (args is ["--check-runtime"])
 {
@@ -13,6 +18,7 @@ builder.Configuration.AddJsonFile(settingsFile ?? (OperatingSystem.IsLinux() ? "
     optional: settingsFile is null, reloadOnChange: false).AddEnvironmentVariables().AddCommandLine(args);
 var options = builder.Configuration.Get<RunnerOptions>() ?? new();
 builder.Services.AddSingleton(options);
+AccessSetup.Configure(builder, options);
 builder.Services.AddSingleton(new GitHubRunnerClient(new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
     { Timeout = TimeSpan.FromSeconds(5) }, options.GitHub));
 builder.Services.AddSingleton<RunnerMonitor>();
@@ -27,14 +33,16 @@ app.Use(async (context, next) =>
 {
     context.Response.Headers.CacheControl = "no-store";
     context.Response.Headers.XContentTypeOptions = "nosniff";
+    context.Response.Headers["Referrer-Policy"] = "no-referrer";
     context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
     await next();
 });
+AccessSetup.Use(app, options);
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.MapGet("/api/runners", (RunnerMonitor monitor) => monitor.GetSnapshotAsync());
 app.MapGet("/api/runners/{id}/logs", async (string id, string? file, RunnerMonitor monitor) =>
-    await monitor.GetLogsAsync(id, file) is { } logs ? Results.Ok(logs) : Results.NotFound());
+    await monitor.GetLogsAsync(id, file) is { } logs ? Results.Ok(logs) : Results.NotFound()).WithMetadata(new AdminAccess());
 app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }));
 app.MapGet("/api/system", (DetailedSystemMonitor monitor) => monitor.Current is { } snapshot ? Results.Ok(snapshot) : Results.Json(new { message = "Collecting the first system sample." }, statusCode: 503));
 app.MapGet("/api/history", (string? from, string? to, string? runner, string? result, int? page, AnalyticsService history) => history.Get(from, to, runner, result, page));
@@ -45,7 +53,10 @@ app.MapPost("/api/alerts/check", (HttpRequest request, AlertService alerts) =>
     // JSON-only, same-origin UI action; form posts and cross-origin requests cannot trigger notifications.
     if (!request.HasJsonContentType() || request.Headers.Origin is { Count: > 0 } origin &&
         origin.ToString() != $"{request.Scheme}://{request.Host}") return Results.StatusCode(403);
-    return alerts.RequestCheck() ? Results.Accepted(value: new { message = "Check queued." }) :
+    var queued = alerts.RequestCheck();
+    if (queued) request.HttpContext.RequestServices.GetRequiredService<AccessAudit>().Add(request.HttpContext, "alert_check_requested");
+    return queued ? Results.Accepted(value: new { message = "Check queued." }) :
         Results.Json(new { message = "Checks are disabled, already running or were just requested." }, statusCode: 429);
-});
+}).WithMetadata(new AdminAccess());
+AccessSetup.Map(app, options);
 app.Run();

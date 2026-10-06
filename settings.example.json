@@ -35,6 +35,17 @@
     "WebhookUrlFile": null,
     "Rules": []
   },
+  "Access": {
+    "Enabled": false,
+    "RequireHttps": true,
+    "PublicOrigin": null,
+    "SessionHours": 8,
+    "TrustedProxies": [],
+    "LocalUsers": [],
+    "GitHubUsers": [],
+    "GitHubClientId": null,
+    "GitHubClientSecretFile": null
+  },
   "GitHub": {
     "TokenFile": "/etc/runner-room/github.token"
   }

@@ -7,6 +7,7 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232c8cff'/%3E%3Cpath d='m9 10 6 6-6 6m8 0h7' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E">
   <script src="/theme.js"></script>
   <link rel="stylesheet" href="/app.css">
+  <script src="/access.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -40,10 +41,12 @@
     <div class="workspace-tabs" role="tablist" aria-label="Workspace">
       <button id="workspace-tab-overview" class="workspace-tab" type="button" role="tab" aria-selected="true" aria-controls="workspace-overview" data-workspace="overview"><svg class="icon" aria-hidden="true"><use href="#icon-grid"/></svg>Overview</button>
       <button id="workspace-tab-history" class="workspace-tab" type="button" role="tab" aria-selected="false" aria-controls="workspace-history" tabindex="-1" data-workspace="history"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3v17h17M7 15l4-5 4 3 5-7"/></svg>History &amp; analytics</button>
+      <button id="workspace-tab-integration" class="workspace-tab" type="button" role="tab" aria-selected="false" aria-controls="workspace-integration" tabindex="-1" data-workspace="integration"><svg class="icon" aria-hidden="true"><use href="#icon-shield"/></svg>GitHub &amp; access</button>
     </div>
     <span class="connection"><i class="dot unknown" id="connection-dot" aria-hidden="true"></i><span id="connection">Connecting…</span></span>
   </div>
   <main>
+    <div id="access-session" class="access-session" hidden><span id="access-identity"></span><button id="access-logout" type="button">Sign out</button></div>
     <div id="demo" class="notice demo" hidden><strong>DEMO PREVIEW</strong><span>Sample data. Your server will show its own runners here.</span></div>
     <div id="message" class="notice" role="status" hidden></div>
     <section id="workspace-overview" role="tabpanel" aria-labelledby="workspace-tab-overview">
@@ -171,6 +174,21 @@
         <p class="detail-hint">Local availability measures running processes, not GitHub connectivity. Unknown states and collection gaps are excluded from percentages. Job records come from retained listener summaries; missing events can leave outcomes or durations unavailable. Outcome filters apply to the job list and CSV; charts and totals describe all outcomes.</p>
       </div>
     </section>
+    <section id="workspace-integration" class="panel" role="tabpanel" aria-labelledby="workspace-tab-integration" hidden>
+      <div class="panel-heading"><div><span class="field-label">CONNECTION &amp; PERMISSIONS</span><h2>GitHub &amp; access</h2></div></div>
+      <div class="monitor-content">
+        <p id="integration-warning" class="monitor-warning" role="status" hidden></p>
+        <div id="integration-summary" class="monitor-grid"></div>
+        <p id="integration-permissions" class="detail-hint"></p>
+        <div id="integration-admin" hidden>
+          <h3 class="monitor-subheading">GitHub runner connections</h3><div id="integration-runners"></div>
+          <p class="detail-hint">Runner API access uses the server's read-only GitHub token. GitHub sign-in identifies dashboard users and grants no access unless their numeric GitHub ID is explicitly allowed.</p>
+          <h3 class="monitor-subheading">Allowed accounts</h3><div id="integration-users"></div>
+          <p class="detail-hint">Manage accounts and roles in Access settings on the server, then restart. Viewer: monitoring, job summaries and history exports. Admin: also diagnostic logs, manual alert checks, integration details and access audit.</p>
+          <h3 class="monitor-subheading">Recent access activity</h3><div id="integration-audit"></div>
+        </div>
+      </div>
+    </section>
   </main>
   <dialog id="log-dialog" aria-labelledby="log-title">
     <div class="log-heading"><div><span class="field-label">RUNNER DIAGNOSTICS</span><h2 id="log-title">Runner logs</h2></div><button id="log-close" type="button" class="secondary-button" aria-label="Close logs">Close ✕</button></div>
@@ -190,5 +208,6 @@
   <script src="/history.js" defer></script>
   <script src="/alerts.js" defer></script>
   <script src="/workspace.js" defer></script>
+  <script src="/integration.js" defer></script>
 </body>
 </html>

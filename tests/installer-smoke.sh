@@ -192,5 +192,6 @@ cp /etc/runner-room/settings.json /tmp/original-settings.json
 bash /fixture/install.sh --runners "$runners" --port 8082 --version v0.1.1
 cmp /tmp/original-settings.json /etc/runner-room/settings.json
 curl -fsS http://127.0.0.1:8082/api/alerts | jq -e --arg id "$alert_id" '.history | any(.[]; .id == $id and .state == "resolved")'
+source /fixture/access-smoke.sh
 systemctl stop runner-room.service
 echo 'PASS: installation, discovery, metadata, jobs/logs, process states, metrics, analytics, scheduled alerts/recovery, rollback, updates and settings/history preservation.'
