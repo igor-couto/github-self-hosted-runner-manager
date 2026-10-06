@@ -61,4 +61,5 @@ await MonitoringChecks.Run(Check);
 AnalyticsChecks.Run(Check);
 await AlertChecks.Run(Check);
 AccessChecks.Run(Check);
-Console.WriteLine($"PASS: {checks} system, inventory, job, log, monitoring, analytics, alert and access checks.");
+await ManagementChecks.Run(Check);
+Console.WriteLine($"PASS: {checks} system, inventory, job, log, monitoring, analytics, alert, access and management checks.");

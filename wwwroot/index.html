@@ -42,6 +42,7 @@
       <button id="workspace-tab-overview" class="workspace-tab" type="button" role="tab" aria-selected="true" aria-controls="workspace-overview" data-workspace="overview"><svg class="icon" aria-hidden="true"><use href="#icon-grid"/></svg>Overview</button>
       <button id="workspace-tab-history" class="workspace-tab" type="button" role="tab" aria-selected="false" aria-controls="workspace-history" tabindex="-1" data-workspace="history"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3v17h17M7 15l4-5 4 3 5-7"/></svg>History &amp; analytics</button>
       <button id="workspace-tab-integration" class="workspace-tab" type="button" role="tab" aria-selected="false" aria-controls="workspace-integration" tabindex="-1" data-workspace="integration"><svg class="icon" aria-hidden="true"><use href="#icon-shield"/></svg>GitHub &amp; access</button>
+      <button id="workspace-tab-management" class="workspace-tab" type="button" role="tab" aria-selected="false" aria-controls="workspace-management" tabindex="-1" data-workspace="management"><svg class="icon" aria-hidden="true"><use href="#icon-server"/></svg>Runner management</button>
     </div>
     <span class="connection"><i class="dot unknown" id="connection-dot" aria-hidden="true"></i><span id="connection">Connecting…</span></span>
   </div>
@@ -189,6 +190,57 @@
         </div>
       </div>
     </section>
+    <section id="workspace-management" class="panel management-panel" role="tabpanel" aria-labelledby="workspace-tab-management" hidden>
+      <div class="panel-heading"><div><span class="field-label">RUNNER LIFECYCLE</span><h2>Runner management</h2></div><button id="management-refresh" class="secondary-button" type="button">Refresh management</button></div>
+      <div class="monitor-content">
+        <p id="management-message" class="monitor-warning" role="status">Loading management settings…</p>
+        <div id="management-content" hidden>
+          <div id="management-summary" class="monitor-grid"></div>
+          <div class="management-toolbar"><button id="management-new" class="secondary-button" type="button">+ Create runners</button><button id="management-import-open" class="secondary-button" type="button">Import installation</button><button id="management-version" class="secondary-button" type="button">Check latest version</button><span id="management-latest" class="detail-hint"></span></div>
+          <details id="management-editor" class="management-section">
+            <summary id="management-editor-title">Create runners / pool template</summary>
+            <form id="management-form" class="management-form">
+              <label>Runner name / batch prefix<input id="mg-name" required maxlength="100" placeholder="build-linux"></label>
+              <label>GitHub scope<select id="mg-scope" required></select></label>
+              <label>Custom labels<input id="mg-labels" placeholder="home-lab, build"></label>
+              <label>Execution mode<select id="mg-mode"><option value="process">Managed process</option><option value="user-service">User systemd service</option><option value="system-service" disabled>Existing system service</option></select></label>
+              <label>Workspace folder<input id="mg-work" value="_work" required maxlength="100"></label>
+              <label>Local pool<input id="mg-pool" value="default" required maxlength="100"></label>
+              <label>GitHub group (organization only)<input id="mg-group" maxlength="100" placeholder="Default"></label>
+              <label>Number of runners<input id="mg-count" type="number" min="1" max="50" value="1" required></label>
+              <label>Crash retry limit<input id="mg-retries" type="number" min="0" max="20" value="3" required></label>
+              <label>Retry delay (seconds)<input id="mg-delay" type="number" min="5" max="3600" value="30" required></label>
+              <label class="management-check"><input id="mg-restore" type="checkbox" checked> Restore after restart</label>
+              <label class="management-check"><input id="mg-ephemeral" type="checkbox"> Ephemeral (one job)</label>
+              <label class="management-check"><input id="mg-no-update" type="checkbox"> Disable GitHub auto-update</label>
+              <label class="management-check"><input id="mg-start" type="checkbox" checked> Start after creation</label>
+              <div class="management-form-actions"><button id="mg-save" class="secondary-button" type="submit">Create runners</button><button id="mg-save-pool" class="secondary-button" type="button">Save pool template</button><button id="mg-reset" class="secondary-button" type="button">New runner</button></div>
+            </form>
+            <p class="detail-hint">Registration settings may unregister and re-register a runner after draining it. This changes its GitHub runner ID and leaves it stopped. Labels and retry settings update in place. Created installations can switch between process and user-service modes; imported modes are preserved.</p>
+          </details>
+          <details id="management-import" class="management-section"><summary>Import an existing installation</summary>
+            <form id="management-import-form" class="management-form"><label>Discovered installation<select id="mg-import-runner" required></select></label><label>Existing execution mode<select id="mg-import-mode"><option value="process">Process (no service)</option><option value="system-service">System systemd service</option><option value="user-service">User systemd service</option></select></label><button class="secondary-button" type="submit">Import into managed mode</button></form>
+            <p class="detail-hint">Import keeps the registration and files in place. Use the existing service mode. The dashboard account needs permission to control that service.</p>
+          </details>
+          <h3 class="monitor-subheading">Managed runners</h3>
+          <div class="management-toolbar"><label class="management-check"><input id="mg-select-all" type="checkbox"> Select all</label><label>Action<select id="mg-action"><option value="start">Start</option><option value="stop">Stop when idle</option><option value="restart">Drain &amp; restart</option><option value="drain">Drain for maintenance</option><option value="update">Drain &amp; update</option><option value="register">Register again</option><option value="unregister">Unregister</option><option value="remove">Remove</option></select></label><button id="mg-apply" class="secondary-button" type="button" disabled>Apply to selected</button></div>
+          <div id="management-runners"></div>
+          <p class="detail-hint">Drain waits for local and GitHub idle readings; busy or unknown readings block stopping. GitHub has no atomic pause API, so pause workflow producers for strict maintenance isolation. Removed managed folders are archived in .removed; imported folders are preserved.</p>
+          <details class="management-section" open><summary>Local runner pools</summary><div id="management-pools"></div><p class="detail-hint">Save a pool template above, then set its desired count. Scaling down drains and unregisters members. Counts refer to installations on this server.</p></details>
+          <details class="management-section"><summary>GitHub organization groups</summary>
+            <form id="management-group-form" class="management-form">
+              <label>Organization<input id="mg-org" placeholder="your-org" required></label><label>Action<select id="mg-group-action"><option value="list">List groups</option><option value="create">Create</option><option value="update">Update</option><option value="members">Replace runner membership</option><option value="delete">Delete</option></select></label>
+              <label>Group ID<input id="mg-group-id" type="number" min="1"></label><label>Group name<input id="mg-group-name" maxlength="100"></label><label>Visibility<select id="mg-visibility"><option value="private">Private repositories</option><option value="selected">Selected repositories</option><option value="all">All repositories</option></select></label><label>Selected repository IDs<input id="mg-repository-ids" placeholder="123, 456"></label><label>Runner IDs (replace membership)<input id="mg-runner-ids" placeholder="23, 24"></label><label class="management-check"><input id="mg-public" type="checkbox"> Allow public repositories</label><div class="management-form-actions"><button class="secondary-button" type="submit">Apply group action</button></div>
+            </form><div id="management-groups"></div>
+          </details>
+          <details class="management-section" open><summary>Workflow runs</summary>
+            <form id="management-workflow-form" class="management-form"><label>Repository<input id="mg-workflow-repo" placeholder="owner/repository" required></label><label>Run ID<input id="mg-run-id" type="number" min="1" required></label><label>Action<select id="mg-workflow-action"><option value="track">Track run</option><option value="rerun-failed">Rerun failed jobs</option><option value="rerun">Rerun all jobs</option><option value="cancel">Cancel run</option></select></label><button class="secondary-button" type="submit">Apply workflow action</button></form>
+            <div id="management-workflows"></div><p class="detail-hint">Attempts and results are refreshed from GitHub every 30 seconds. Reruns can take a moment to appear. Actions require a permitted repository and a token with Actions write access.</p>
+          </details>
+          <h3 class="monitor-subheading">Operation history</h3><div id="management-operations" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
   </main>
   <dialog id="log-dialog" aria-labelledby="log-title">
     <div class="log-heading"><div><span class="field-label">RUNNER DIAGNOSTICS</span><h2 id="log-title">Runner logs</h2></div><button id="log-close" type="button" class="secondary-button" aria-label="Close logs">Close ✕</button></div>
@@ -209,5 +261,6 @@
   <script src="/alerts.js" defer></script>
   <script src="/workspace.js" defer></script>
   <script src="/integration.js" defer></script>
+  <script src="/management.js" defer></script>
 </body>
 </html>

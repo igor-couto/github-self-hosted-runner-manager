@@ -10,6 +10,10 @@ jobs:
           dotnet-version: '9.0.x'
       - run: dotnet build -c Release
       - run: dotnet run --project tests/RunnerRoom.Tests -c Release
+      - name: Test managed runner lifecycle as a non-root Linux account
+        run: |
+          docker build -f tests/management.Dockerfile -t runner-room-management-checks .
+          docker run --rm runner-room-management-checks
       - run: bash -n install.sh && shellcheck install.sh
       - name: Build Linux release for installer tests
         run: dotnet publish -c Release -r linux-x64 --self-contained true -p:InvariantGlobalization=true -o artifacts/package-linux-x64

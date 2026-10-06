@@ -10,14 +10,14 @@ function metricCard(title, value, caption) {
   if (caption) card.append(element("p", "detail-hint", caption));
   return card;
 }
-function monitorTable(headers, rows) {
+function monitorTable(headers, rows, emptyText = "No readable measurements available.") {
   const wrap = element("div", "monitor-table-wrap");
   const table = element("table", "monitor-table"); const head = element("thead"); const title = element("tr");
   for (const label of headers) { const th = element("th", "", label); th.scope = "col"; title.append(th); }
   head.append(title); table.append(head); const body = element("tbody");
-  for (const row of rows) { const tr = element("tr"); for (const value of row) tr.append(element("td", "", value ?? "Unavailable")); body.append(tr); }
+  for (const row of rows) { const tr = element("tr"); for (const value of row) { const cell = element("td"); if (value instanceof Node) cell.append(value); else cell.textContent = value ?? "Unavailable"; tr.append(cell); } body.append(tr); }
   table.append(body); wrap.append(table);
-  if (!rows.length) wrap.append(element("p", "detail-hint", "No readable measurements available."));
+  if (!rows.length) wrap.append(element("p", "detail-hint", emptyText));
   return wrap;
 }
 function renderCpuMetrics() {

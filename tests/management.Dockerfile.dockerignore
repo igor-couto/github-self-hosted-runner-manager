@@ -1,0 +1,6 @@
+bin
+obj
+artifacts
+.git
+tests/RunnerRoom.Tests/bin
+tests/RunnerRoom.Tests/obj

@@ -14,6 +14,10 @@ jobs:
         with:
           dotnet-version: '9.0.x'
       - run: dotnet run --project tests/RunnerRoom.Tests -c Release
+      - name: Test managed runner lifecycle as a non-root Linux account
+        run: |
+          docker build -f tests/management.Dockerfile -t runner-room-management-checks .
+          docker run --rm runner-room-management-checks
   package:
     needs: validate
     # An unset repository variable keeps all three builds on GitHub's x64 runner.

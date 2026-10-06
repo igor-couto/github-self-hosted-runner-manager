@@ -22,6 +22,7 @@ AccessSetup.Configure(builder, options);
 builder.Services.AddSingleton(new GitHubRunnerClient(new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
     { Timeout = TimeSpan.FromSeconds(5) }, options.GitHub));
 builder.Services.AddSingleton<RunnerMonitor>();
+ManagementSetup.Configure(builder, options);
 builder.Services.AddSingleton<DetailedSystemMonitor>();
 builder.Services.AddHostedService(services => services.GetRequiredService<DetailedSystemMonitor>());
 builder.Services.AddSingleton<AnalyticsService>();
@@ -59,4 +60,5 @@ app.MapPost("/api/alerts/check", (HttpRequest request, AlertService alerts) =>
         Results.Json(new { message = "Checks are disabled, already running or were just requested." }, statusCode: 429);
 }).WithMetadata(new AdminAccess());
 AccessSetup.Map(app, options);
+ManagementSetup.Map(app);
 app.Run();

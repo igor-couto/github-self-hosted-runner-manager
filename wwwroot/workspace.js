@@ -1,6 +1,13 @@
 "use strict";
 (() => {
   const tabs = [...document.querySelectorAll("[data-workspace]")];
+  function keepSelectedVisible() {
+    const tab = tabs.find(t => t.getAttribute("aria-selected") === "true");
+    if (!tab) return;
+    const strip = tab.parentElement, selected = tab.getBoundingClientRect(), visible = strip.getBoundingClientRect();
+    if (selected.right > visible.right) strip.scrollLeft += selected.right - visible.right;
+    else if (selected.left < visible.left) strip.scrollLeft -= visible.left - selected.left;
+  }
   function show(name) {
     for (const tab of tabs) {
       const selected = tab.dataset.workspace === name;
@@ -8,6 +15,7 @@
       tab.tabIndex = selected ? 0 : -1;
       document.getElementById(tab.getAttribute("aria-controls")).hidden = !selected;
     }
+    requestAnimationFrame(keepSelectedVisible);
   }
   function syncLocation() {
     let anchor;
@@ -39,5 +47,6 @@
   }
   window.addEventListener("popstate", syncLocation);
   window.addEventListener("hashchange", syncLocation);
+  window.addEventListener("resize", keepSelectedVisible);
   syncLocation();
 })();

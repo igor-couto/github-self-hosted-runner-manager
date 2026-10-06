@@ -48,5 +48,14 @@
   },
   "GitHub": {
     "TokenFile": "/etc/runner-room/github.token"
+  },
+  "Management": {
+    "Enabled": false,
+    "RootDirectory": "/var/lib/runner-room/runners",
+    "TokenFile": "/etc/runner-room/management.token",
+    "AllowedScopes": [],
+    "MaximumRunners": 50,
+    "MaximumBatchSize": 10,
+    "DrainTimeoutMinutes": 60
   }
 }
