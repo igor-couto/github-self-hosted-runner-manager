@@ -63,7 +63,11 @@ function duration(seconds) {
   const minutes = Math.floor(seconds / 60) % 60;
   return `${days ? `${days}d ` : ""}${hours || days ? `${hours}h ` : ""}${minutes}m`;
 }
-function dateTime(value) { return value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString() : "Unavailable"; }
+function dateTime(value) { return window.roomDate(value); }
+function detailLink(kind, id, title) {
+  const link = element("a", "project-link", title); link.dataset.noTranslate = "";
+  link.href = `#/${kind}/${encodeURIComponent(id)}`; return link;
+}
 function badge(status, text) {
   const node = element("span", `badge ${status}`);
   const dot = element("i", `dot ${status}`);
@@ -71,14 +75,18 @@ function badge(status, text) {
   node.append(dot, document.createTextNode(text));
   return node;
 }
-function runnerDetails(runner) {
+function runnerDetails(runner, checkedAt = snapshot?.checkedAt) {
   const box = element("div", "runner-details");
-  box.append(currentJobPanel(runner));
+  box.append(detailLink("runner", runner.id, "Open runner page"));
+  if (runner.repository) box.append(detailLink("repository", runner.repository, "Open repository page"));
+  if (runner.currentJob) box.append(detailLink("current-job", runner.id, "Open current job page"));
+  box.append(currentJobPanel(runner, checkedAt));
   if (typeof runnerResourcePanel === "function") box.append(runnerResourcePanel(runner));
   const fields = element("dl", "detail-grid");
   const add = (label, value) => {
     const field = element("div");
-    field.append(element("dt", "", label), element("dd", "", value || "Unavailable"));
+    const data = element("dd", "", value || "Unavailable"); data.dataset.noTranslate = "";
+    field.append(element("dt", "", label), data);
     fields.append(field);
   };
   add("Registered name", runner.name);
@@ -121,7 +129,7 @@ function runnerDetails(runner) {
   }
   return box;
 }
-function currentJobPanel(runner) {
+function currentJobPanel(runner, checkedAt = snapshot?.checkedAt) {
   const section = element("section", "current-job");
   const header = element("div", "job-heading");
   header.append(element("h3", "", "Current job"));
@@ -151,7 +159,7 @@ function currentJobPanel(runner) {
     for (const step of job.steps) {
       const row = element("li", `job-step ${step.status}`);
       row.append(element("span", "step-name", step.name), element("span", "step-state", step.status),
-        element("span", "step-time", jobDuration(Math.max(0, ((step.completedAt ? Date.parse(step.completedAt) : step.status === "running" ? Date.parse(snapshot.checkedAt) : NaN) - Date.parse(step.startedAt)) / 1000))));
+        element("span", "step-time", jobDuration(Math.max(0, ((step.completedAt ? Date.parse(step.completedAt) : step.status === "running" ? Date.parse(checkedAt) : NaN) - Date.parse(step.startedAt)) / 1000))));
       steps.append(row);
     }
     section.append(steps);
@@ -197,13 +205,22 @@ function render() {
   const visible = runners.filter(r => [r.name, r.displayName, r.folder, r.repository, r.organization, r.group, r.host, ...(r.gitHub.labels || [])].join(" ").toLowerCase().includes(query) &&
     (selectedStatus === "all" || r.status === selectedStatus));
   const groupName = r => grouping === "none" ? "" : r[grouping] || "Ungrouped";
-  visible.sort((a, b) => groupName(a).localeCompare(groupName(b)) || a.displayName.localeCompare(b.displayName) || a.path.localeCompare(b.path));
+  const sort = $("runner-sort").value;
+  visible.sort((a, b) => groupName(a).localeCompare(groupName(b)) ||
+    (sort === "status" ? a.status.localeCompare(b.status) : sort === "uptime" ? (b.uptimeSeconds || 0) - (a.uptimeSeconds || 0) : 0) || a.displayName.localeCompare(b.displayName) || a.path.localeCompare(b.path));
+  const size = $("runner-page-size").value === "all" ? Math.max(1, visible.length) : Number($("runner-page-size").value);
+  const pages = Math.max(1, Math.ceil(visible.length / size));
+  roomPrefs.runnerPage = Math.max(1, Math.min(pages, Number.isInteger(roomPrefs.runnerPage) ? roomPrefs.runnerPage : 1));
+  $("runner-page").textContent = `${roomPrefs.runnerPage} / ${pages}`;
+  $("runner-previous").disabled = roomPrefs.runnerPage === 1;
+  $("runner-next").disabled = roomPrefs.runnerPage === pages;
+  saveRoomPrefs();
   $("visible-count").textContent = `Showing ${visible.length} of ${runners.length} ${runners.length === 1 ? "runner" : "runners"}`;
   // Preserve keyboard focus through periodic refreshes.
   const focusPath = document.activeElement?.dataset.runnerPath;
   $("runners").replaceChildren();
   let previousGroup = null;
-  for (const [index, runner] of visible.entries()) {
+  for (const [index, runner] of visible.slice((roomPrefs.runnerPage - 1) * size, roomPrefs.runnerPage * size).entries()) {
     if (grouping !== "none" && previousGroup !== groupName(runner)) {
       previousGroup = groupName(runner);
       const groupRow = element("tr", "group-row");
@@ -229,7 +246,7 @@ function render() {
     });
     nameCell.append(toggle);
     const target = element("td", "target-column");
-    target.append(element("span", "runner-target", runner.repository || runner.organization || "Unknown project"));
+    target.append(runner.repository ? detailLink("repository", runner.repository, runner.repository) : element("span", "runner-target", runner.organization || "Unknown project"));
     target.append(element("span", "runner-subtitle", [runner.operatingSystem, runner.architecture, runner.version].filter(Boolean).join(" · ") || "Platform unavailable"));
     const activity = element("td");
     activity.append(badge(runner.status, labels[runner.status] || "Unknown"));
@@ -249,7 +266,8 @@ function render() {
   $("empty").hidden = visible.length > 0;
   $("empty-title").textContent = runners.length ? "No matching runners" : snapshot.error ? "Waiting for your runner folder" : "No runners found";
   $("empty-description").textContent = runners.length ? "Try another search or choose a different status." : "Check the watched directories and make sure they contain your runner installations.";
-  $("updated").textContent = new Date(snapshot.checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  $("updated").textContent = roomDate(snapshot.checkedAt, true);
+  window.dispatchEvent(new Event("snapshot-updated"));
 }
 async function refresh() {
   if (loading) return;
@@ -281,9 +299,10 @@ async function refresh() {
     loading = false;
   }
 }
-$("search").addEventListener("input", () => { if (snapshot) render(); });
-$("status-filter").addEventListener("change", () => { if (snapshot) render(); });
-$("group-by").addEventListener("change", () => { if (snapshot) render(); });
+for (const id of ["search", "status-filter", "group-by", "runner-sort", "runner-page-size"])
+  $(id).addEventListener(id === "search" ? "input" : "change", () => { roomPrefs.runnerPage = 1; if (snapshot) render(); });
+for (const [id, delta] of [["runner-previous", -1], ["runner-next", 1]]) $(id).addEventListener("click", () => { roomPrefs.runnerPage += delta; if (snapshot) render(); });
+window.addEventListener("preferences-ready", () => { if (snapshot) render(); });
 $("refresh").addEventListener("click", refresh);
 refresh();
 setInterval(refresh, 15000);

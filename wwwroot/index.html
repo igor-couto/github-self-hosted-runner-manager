@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Runner Room</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232c8cff'/%3E%3Cpath d='m9 10 6 6-6 6m8 0h7' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E">
+  <meta name="theme-color" content="#202a35">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <script src="/preferences.js"></script>
   <script src="/theme.js"></script>
   <link rel="stylesheet" href="/app.css">
   <script src="/access.js" defer></script>
@@ -29,6 +33,7 @@
       <span>RUNNER ROOM<small>SELF-HOSTED RUNNER MONITOR</small></span>
     </a>
     <div class="topbar-actions">
+      <button id="preferences-open" class="theme-toggle" type="button">Preferences</button>
       <button id="theme-toggle" class="theme-toggle" type="button" hidden>
         <svg class="icon sun" aria-hidden="true"><use href="#icon-sun"/></svg>
         <svg class="icon moon" aria-hidden="true"><use href="#icon-moon"/></svg>
@@ -66,10 +71,12 @@
             <label class="search"><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg><input id="search" type="search" aria-label="Search runners" placeholder="Search names, projects, labels…" autocomplete="off"></label>
             <select id="status-filter" aria-label="Filter runners by status"><option value="all">All activity</option><option value="busy">Busy</option><option value="idle">Idle</option><option value="offline">Offline</option><option value="unknown">Unknown</option></select>
             <select id="group-by" aria-label="Group runners"><option value="none">No grouping</option><option value="repository">By repository</option><option value="organization">By organization</option><option value="host">By machine</option><option value="group">By custom group</option><option value="runnerGroup">By runner group</option></select>
+            <select id="runner-sort" aria-label="Sort runners"><option value="name">Name</option><option value="status">Status</option><option value="uptime">Uptime</option></select>
+            <select id="runner-page-size" aria-label="Runners per page"><option value="10">10 per page</option><option value="25">25 per page</option><option value="50">50 per page</option><option value="all">All runners</option></select>
           </div>
           <div class="table-wrap"><table><thead><tr><th scope="col">Runner</th><th scope="col" class="target-column">Project</th><th scope="col">Local activity</th><th scope="col">GitHub</th></tr></thead><tbody id="runners"></tbody></table></div>
           <div id="empty" class="empty" hidden><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg><h3 id="empty-title">No runners yet</h3><p id="empty-description"></p></div>
-          <div class="table-footer"><span id="visible-count">Waiting for runners…</span><span>Refreshes every 15 seconds</span></div>
+          <div class="table-footer"><span id="visible-count">Waiting for runners…</span><div class="page-controls"><button id="runner-previous" type="button">Previous</button><span id="runner-page"></span><button id="runner-next" type="button">Next</button></div></div>
         </section>
         <p class="status-note"><svg class="icon" aria-hidden="true"><use href="#icon-shield"/></svg>Local activity and GitHub connectivity are separate checks. Select a runner to see its details.</p>
       </div>
@@ -88,7 +95,7 @@
         <section class="panel server-panel" aria-labelledby="server-title">
           <div class="panel-heading"><h2 id="server-title">Server details</h2><svg class="icon" aria-hidden="true"><use href="#icon-server"/></svg></div>
           <div class="server-body">
-            <span class="field-label">HOSTNAME</span><h3 id="host">Connecting…</h3>
+            <span class="field-label">HOSTNAME</span><h3><a id="host" href="#/server" data-no-translate>Connecting…</a></h3>
             <dl><div class="directory-field"><dt>WATCHED DIRECTORIES</dt><dd><code id="root">—</code></dd></div></dl>
             <section class="system-info" aria-labelledby="system-title">
               <h4 id="system-title">SYSTEM RESOURCES</h4>
@@ -241,7 +248,30 @@
         </div>
       </div>
     </section>
+    <section id="workspace-detail" class="panel detail-page" hidden aria-labelledby="detail-title">
+      <div class="panel-heading"><a href="#overview">← Overview</a><span id="detail-checked" class="panel-caption"></span></div>
+      <div class="detail-page-body"><h1 id="detail-title" data-no-translate>Details</h1><p id="detail-message" role="status"></p><div id="detail-content"></div></div>
+    </section>
   </main>
+  <button id="exit-tv" class="secondary-button" type="button" hidden>Exit TV mode</button>
+  <dialog id="preferences-dialog" aria-labelledby="preferences-title">
+    <div class="panel-heading"><h2 id="preferences-title">Preferences</h2><button id="preferences-close" type="button">Close ✕</button></div>
+    <div class="preferences-body">
+      <p class="detail-hint">Saved in this browser. No credentials or monitoring data are stored in these preferences.</p>
+      <div class="preference-grid">
+        <label>Theme<select id="pref-theme"><option value="dark">Dark</option><option value="light">Light</option><option value="system">System</option><option value="night">Night</option></select></label>
+        <label>Language<select id="pref-language"><option value="en">English</option><option value="pt-PT">Português</option></select></label>
+        <label>Date format<select id="pref-dateFormat"><option value="locale">Local format</option><option value="iso">YYYY-MM-DD</option></select></label>
+        <label>Clock<select id="pref-clock"><option value="24">24 hours</option><option value="12">12 hours</option></select></label>
+        <label>Time zone<select id="pref-timeZone"><option value="local">Local time</option><option value="UTC">UTC</option></select></label>
+        <label>Display mode<select id="pref-display"><option value="normal">Standard</option><option value="compact">Compact</option><option value="tv">TV / wall display</option></select></label>
+      </div>
+      <div class="preference-actions"><button id="edit-layout" type="button" aria-pressed="false">Edit layout</button><button id="fullscreen" type="button">Full screen</button><button id="install-app" type="button">Install app</button></div>
+      <p id="install-message" class="detail-hint" role="status">Installation needs HTTPS or localhost. Use your browser’s install menu; on iPhone, Share → Add to Home Screen.</p>
+      <h3>Visible widgets</h3><div id="widget-list"></div>
+      <button id="reset-preferences" type="button">Reset preferences</button>
+    </div>
+  </dialog>
   <dialog id="log-dialog" aria-labelledby="log-title">
     <div class="log-heading"><div><span class="field-label">RUNNER DIAGNOSTICS</span><h2 id="log-title">Runner logs</h2></div><button id="log-close" type="button" class="secondary-button" aria-label="Close logs">Close ✕</button></div>
     <p class="detail-hint log-description">Local listener and worker diagnostics. Multiline payloads are omitted and common secrets are masked. Review before sharing.</p>
@@ -262,5 +292,8 @@
   <script src="/workspace.js" defer></script>
   <script src="/integration.js" defer></script>
   <script src="/management.js" defer></script>
+  <script src="/dashboard.js" defer></script>
+  <script src="/details.js" defer></script>
+  <script src="/i18n.js" defer></script>
 </body>
 </html>

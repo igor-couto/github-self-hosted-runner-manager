@@ -63,6 +63,12 @@ public sealed class AnalyticsService(RunnerOptions options, RunnerMonitor monito
         return Results.File(Encoding.UTF8.GetBytes(Csv(report)), "text/csv; charset=utf-8", "runner-room-job-history.csv");
     }
     internal AnalyticsReport RecentJobs(DateTimeOffset now) => store.Query(now.AddMinutes(-15), now.AddTicks(1), null, null, 1, allJobs: true);
+    public IResult Job(string id)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var job = store.Query(now.AddDays(-90), now.AddTicks(1), null, null, 1, options.Demo, allJobs: true).Jobs.FirstOrDefault(j => j.Id == id);
+        return job is null ? Results.NotFound() : Results.Ok(job);
+    }
     internal static bool TryRange(string? from, string? to, DateTimeOffset now, out DateTimeOffset start, out DateTimeOffset end)
     {
         var today = DateOnly.FromDateTime(now.UtcDateTime);

@@ -14,6 +14,7 @@ public sealed class RunnerOptions
     public AlertOptions Alerts { get; set; } = new();
     public AccessOptions Access { get; set; } = new();
     public ManagementOptions Management { get; set; } = new();
+    public QuotaOptions Quotas { get; set; } = new();
 }
 
 public sealed class AnalyticsOptions

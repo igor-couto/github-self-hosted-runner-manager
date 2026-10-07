@@ -119,7 +119,9 @@ internal sealed class LogRedactor
         var loginSecret = string.IsNullOrWhiteSpace(options.Access.GitHubClientSecretFile) ? null :
             LocalRunnerReader.ReadSmall(options.Access.GitHubClientSecretFile, 8192)?.Trim();
         var managementToken = string.IsNullOrWhiteSpace(options.Management.TokenFile) ? null : LocalRunnerReader.ReadSmall(options.Management.TokenFile, 8192)?.Trim();
-        values = options.Logs.RedactValues.Append(token ?? "").Append(loginSecret ?? "").Append(managementToken ?? "").Where(v => !string.IsNullOrWhiteSpace(v)).Distinct().OrderByDescending(v => v.Length).ToArray();
+        values = options.Logs.RedactValues.Append(token ?? "").Append(loginSecret ?? "").Append(managementToken ?? "")
+            .Concat(options.Quotas.Providers.Where(p => p.Type == "openrouter").Select(p => LocalRunnerReader.ReadSmall(p.TokenFile ?? "", 8192)?.Trim() ?? ""))
+            .Where(v => !string.IsNullOrWhiteSpace(v)).Distinct().OrderByDescending(v => v.Length).ToArray();
     }
     internal string Redact(string text)
     {
