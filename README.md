@@ -1,12 +1,26 @@
 # Runner Room
 
-A small dashboard for GitHub Actions runners on your Linux server. It shows which runners are **Busy**, **Idle**, **Offline**, or **Unknown**, and refreshes every 15 seconds.
+A dashboard for monitoring and managing GitHub Actions runners on your Linux server, including Raspberry Pi. Install it with one command and open it on your local network. Local monitoring works without a GitHub token.
 
-Dark theme is the default. Use the theme button in the header to switch to light; your choice is saved in your browser.
+[Install](#install) · [Support](#support) · [License](#license)
 
-Server details includes CPU usage, logical core count, architecture, RAM usage, disk space, and system uptime. These refresh with the runner status.
+![Runner Room dashboard showing sample runners, activity, and server resources](docs/images/dashboard-overview.png)
 
-C# / ASP.NET Core backend. Plain HTML, CSS, and JavaScript frontend.
+## Features
+
+- **Runner visibility:** Busy, Idle, Offline, and Unknown states; searchable inventory, labels, repository details, current jobs, and diagnostic logs.
+- **System monitoring:** CPU, RAM, disks, network traffic, processes, runner resource usage, and supported hardware sensors.
+- **History and alerts:** runner activity and job analytics, historical resource readings, scheduled checks, and configurable alerts.
+- **Optional GitHub integration and management:** connectivity checks, runner registration and lifecycle actions, groups, updates, and workflow rerun/cancellation. Management requires explicit configuration and administrator access.
+- **Customizable dashboard:** movable widgets, saved filters and layouts, dark/light/system/night themes, English and Portuguese, compact and TV modes.
+- **Alternative interfaces:** an installable web app, readable/JSON CLI, interactive terminal dashboard, and an optional Windows tray prototype.
+
+Built with C# / ASP.NET Core and plain HTML, CSS, and JavaScript. Self-contained releases support Linux **x64, ARM32, and ARM64**; no separate .NET installation is needed.
+
+
+### History and analytics
+
+![Runner Room history and analytics showing sample runner activity and recorded jobs](docs/images/history-analytics.png)
 
 ## Install
 
@@ -573,3 +587,19 @@ docker run --rm runner-room-management-checks
 ```
 
 These tests cover process start/stop, busy-worker refusal, crash retry/exhaustion, persisted restoration, interrupted maintenance, corrupt-state preservation, batch/pool operations, scope/path validation and credential isolation. GitHub requests are mocked; tests never register or cancel real runners/workflows. Real organization policies, systemd authorization and a full GitHub registration should be verified with your server's credentials before broad rollout.
+
+## Support
+
+For help, contact **Igor Couto** at [igor.fcouto@gmail.com](mailto:igor.fcouto@gmail.com). Report bugs and suggest improvements through [GitHub Issues](https://github.com/igor-couto/github-self-hosted-runner-manager/issues). Please check existing issues before opening a new one.
+
+For a bug report, include:
+
+- Runner Room version, Linux distribution/version, and architecture (x64, ARM32, or ARM64).
+- Relevant configuration, installation method, and steps to reproduce the problem.
+- What you expected, what actually happened, and relevant screenshots or log excerpts.
+
+Remove passwords, tokens, runner credentials, and other private information before sharing configuration, logs, or screenshots. Review diagnostic excerpts even when the dashboard has masked known secrets. **Report security vulnerabilities privately by email**, rather than in a public issue.
+
+## License
+
+Runner Room is available under the [MIT License](LICENSE).
