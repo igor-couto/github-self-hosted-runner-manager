@@ -1,5 +1,11 @@
 using RunnerRoom;
 
+if (args.Length > 0 && args[0] is "cli" or "tui")
+{
+    Environment.ExitCode = await RoomCommand.Run(args);
+    return;
+}
+
 if (args is ["--hash-password"])
 {
     AccessAccounts.HashPasswordCommand();
@@ -29,6 +35,8 @@ builder.Services.AddSingleton<AnalyticsService>();
 builder.Services.AddHostedService(services => services.GetRequiredService<AnalyticsService>());
 builder.Services.AddSingleton<AlertService>();
 builder.Services.AddHostedService(services => services.GetRequiredService<AlertService>());
+builder.Services.AddSingleton<QuotaService>();
+builder.Services.AddHostedService(services => services.GetRequiredService<QuotaService>());
 var app = builder.Build();
 app.Use(async (context, next) =>
 {
@@ -47,8 +55,10 @@ app.MapGet("/api/runners/{id}/logs", async (string id, string? file, RunnerMonit
 app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }));
 app.MapGet("/api/system", (DetailedSystemMonitor monitor) => monitor.Current is { } snapshot ? Results.Ok(snapshot) : Results.Json(new { message = "Collecting the first system sample." }, statusCode: 503));
 app.MapGet("/api/history", (string? from, string? to, string? runner, string? result, int? page, AnalyticsService history) => history.Get(from, to, runner, result, page));
+app.MapGet("/api/history/jobs/{id}", (string id, AnalyticsService history) => history.Job(id));
 app.MapGet("/api/history/export", (string? from, string? to, string? runner, string? result, AnalyticsService history) => history.Get(from, to, runner, result, 1, true));
 app.MapGet("/api/alerts", (AlertService alerts) => alerts.Current());
+app.MapGet("/api/quotas", (QuotaService quotas) => quotas.Current).WithMetadata(new AdminAccess());
 app.MapPost("/api/alerts/check", (HttpRequest request, AlertService alerts) =>
 {
     // JSON-only, same-origin UI action; form posts and cross-origin requests cannot trigger notifications.

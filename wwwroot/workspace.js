@@ -9,15 +9,18 @@
     else if (selected.left < visible.left) strip.scrollLeft -= visible.left - selected.left;
   }
   function show(name) {
+    document.getElementById("workspace-detail").hidden = name !== "detail";
     for (const tab of tabs) {
       const selected = tab.dataset.workspace === name;
       tab.setAttribute("aria-selected", String(selected));
-      tab.tabIndex = selected ? 0 : -1;
+      tab.tabIndex = selected || name === "detail" && tab === tabs[0] ? 0 : -1;
       document.getElementById(tab.getAttribute("aria-controls")).hidden = !selected;
     }
     requestAnimationFrame(keepSelectedVisible);
+    window.dispatchEvent(new Event("detail-route"));
   }
   function syncLocation() {
+    if (location.hash.startsWith("#/")) { show("detail"); return; }
     let anchor;
     try { anchor = decodeURIComponent(location.hash.slice(1)); } catch { anchor = ""; }
     const target = document.getElementById(anchor);

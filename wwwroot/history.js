@@ -1,5 +1,5 @@
 "use strict";
-let historyPage=1, historyData=null, historyRequest=null, historyViewKey=null;
+let historyPage=Number.isInteger(roomPrefs.historyPage) && roomPrefs.historyPage > 0 ? roomPrefs.historyPage : 1, historyData=null, historyRequest=null, historyViewKey=null;
 function historyDates(days) {
   const now=new Date(), first=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()-days+1));
   $("history-from").value=first.toISOString().slice(0,10);$("history-to").value=now.toISOString().slice(0,10);
@@ -7,7 +7,7 @@ function historyDates(days) {
 }
 function historyQuery() {
   const query=new URLSearchParams({from:$("history-from").value,to:$("history-to").value,page:String(historyPage)});
-  if($("history-runner").value)query.set("runner",$("history-runner").value);
+  if($("history-runner").value || roomPrefs.historyRunner)query.set("runner",$("history-runner").value || roomPrefs.historyRunner);
   if($("history-result").value)query.set("result",$("history-result").value);
   return query;
 }
@@ -24,7 +24,7 @@ function historyBar(label,value,max,text) {
 }
 function renderHistory() {
   const data=historyData,summary=data.summary;
-  const selected=$("history-runner").value;
+  const selected=$("history-runner").value || roomPrefs.historyRunner || "";
   const viewKey=JSON.stringify([data.from.slice(0,10),data.to.slice(0,10),selected,$("history-result").value,data.page]);
   const oldTable=$("history-jobs").querySelector(".monitor-table-wrap");
   const scroll=viewKey===historyViewKey&&oldTable?{top:oldTable.scrollTop,left:oldTable.scrollLeft,focused:document.activeElement===oldTable}:null;
@@ -53,13 +53,13 @@ function renderHistory() {
   }
   $("history-runners").replaceChildren(monitorTable(["Runner","Completed","Busy","Idle","Offline","Unknown","Utilization","Availability"],data.runners.map(r=>[r.name,r.completedJobs,historyTime(r.busySeconds),historyTime(r.idleSeconds),historyTime(r.offlineSeconds),historyTime(r.unknownSeconds),percentText(r.utilization),percentText(r.availability)])));
   const names=new Map(data.runnerOptions.map(r=>[r.id,r.name]));
-  $("history-jobs").replaceChildren(monitorTable(["Runner","Job","Started","Completed","Outcome","Duration"],data.jobs.map(j=>[names.get(j.runnerId)||"Unknown runner",j.name,j.startedAt?dateTime(j.startedAt):"Not observed",j.completedAt?dateTime(j.completedAt):"Not observed",j.result||"Completion not observed",historyTime(j.durationSeconds)])));
+  $("history-jobs").replaceChildren(monitorTable(["Runner","Job","Started","Completed","Outcome","Duration"],data.jobs.map(j=>[names.get(j.runnerId)||"Unknown runner",detailLink("job",j.id,j.name),j.startedAt?dateTime(j.startedAt):"Not observed",j.completedAt?dateTime(j.completedAt):"Not observed",j.result||"Completion not observed",historyTime(j.durationSeconds)])));
   const jobTable=$("history-jobs").querySelector(".monitor-table-wrap");
   jobTable.tabIndex=0;jobTable.setAttribute("role","region");jobTable.setAttribute("aria-label","Job history, scroll for more records");
   if(scroll){jobTable.scrollTop=scroll.top;jobTable.scrollLeft=scroll.left;if(scroll.focused)jobTable.focus({preventScroll:true});}
   historyViewKey=viewKey;
   if(!data.totalJobs)$("history-jobs").append(element("p","detail-hint","No recorded jobs match these filters. History begins with the listener summaries available locally."));
-  historyPage=data.page;
+  historyPage=data.page; roomPrefs.historyPage=historyPage; roomPrefs.historyRunner=selected; saveRoomPrefs();
   $("history-page").textContent=`Page ${data.page} of ${Math.max(1,Math.ceil(data.totalJobs/data.pageSize))} · ${data.totalJobs} job records`;
   $("history-previous").disabled=data.page<=1;$("history-next").disabled=data.page*data.pageSize>=data.totalJobs;
   $("history-export").disabled=!data.totalJobs;
@@ -81,7 +81,7 @@ async function refreshHistory() {
 $("history-controls").addEventListener("submit",event=>{event.preventDefault();historyPage=1;refreshHistory();});
 $("history-period").addEventListener("change",()=>{const days=Number($("history-period").value);if(days){historyDates(days);historyPage=1;refreshHistory();}});
 for(const id of ["history-from","history-to"])$(id).addEventListener("input",()=>{$("history-period").value="custom";$("history-export").disabled=true;});
-for(const id of ["history-runner","history-result"])$(id).addEventListener("change",()=>{historyPage=1;refreshHistory();});
+for(const id of ["history-runner","history-result"])$(id).addEventListener("change",()=>{roomPrefs.historyRunner=$("history-runner").value;historyPage=1;refreshHistory();});
 $("history-previous").addEventListener("click",()=>{historyPage--;refreshHistory();});
 $("history-next").addEventListener("click",()=>{historyPage++;refreshHistory();});
 $("history-export").addEventListener("click",async()=>{
@@ -94,4 +94,6 @@ $("history-export").addEventListener("click",async()=>{
   finally {button.disabled=!historyData?.totalJobs;}
 });
 $("refresh").addEventListener("click",refreshHistory);
-historyDates(7);refreshHistory();setInterval(()=>{if(!historyRequest)refreshHistory();},15000);
+historyDates(7);
+window.addEventListener("preferences-ready", () => { if ($("history-period").value !== "custom") historyDates(Number($("history-period").value) || 7); refreshHistory(); });
+setInterval(()=>{if(!historyRequest)refreshHistory();},15000);

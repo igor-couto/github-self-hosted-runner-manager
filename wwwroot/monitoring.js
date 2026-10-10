@@ -15,7 +15,7 @@ function monitorTable(headers, rows, emptyText = "No readable measurements avail
   const table = element("table", "monitor-table"); const head = element("thead"); const title = element("tr");
   for (const label of headers) { const th = element("th", "", label); th.scope = "col"; title.append(th); }
   head.append(title); table.append(head); const body = element("tbody");
-  for (const row of rows) { const tr = element("tr"); for (const value of row) { const cell = element("td"); if (value instanceof Node) cell.append(value); else cell.textContent = value ?? "Unavailable"; tr.append(cell); } body.append(tr); }
+  for (const row of rows) { const tr = element("tr"); for (const value of row) { const cell = element("td"); cell.dataset.noTranslate = ""; if (value instanceof Node) cell.append(value); else cell.textContent = value ?? "Unavailable"; tr.append(cell); } body.append(tr); }
   table.append(body); wrap.append(table);
   if (!rows.length) wrap.append(element("p", "detail-hint", emptyText));
   return wrap;

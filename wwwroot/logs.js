@@ -59,7 +59,7 @@ function renderLogLines() {
   output.replaceChildren();
   for (const line of lines) {
     const row = element("div", `log-line log-${line.level.toLowerCase()}`);
-    row.append(element("span", "log-time", new Date(line.at).toLocaleTimeString()), element("span", "log-level", line.level),
+    row.append(element("span", "log-time", roomDate(line.at, true)), element("span", "log-level", line.level),
       element("span", "log-text", `${line.source}: ${line.message}`));
     output.append(row);
   }

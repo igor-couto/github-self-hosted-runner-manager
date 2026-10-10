@@ -6,6 +6,9 @@ namespace RunnerRoom;
 public sealed record HistoricalRunner(string Id, string Name, string? Repository);
 public sealed record HistoricalJob(string RunnerId, string Name, DateTimeOffset? StartedAt, DateTimeOffset? CompletedAt, string? Result)
 {
+    // Completion identity remains stable when a matching start is discovered later.
+    public string Id => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+        System.Text.Encoding.UTF8.GetBytes(System.Text.Json.JsonSerializer.Serialize(new { RunnerId, Name, At, Result })))).ToLowerInvariant();
     public double? DurationSeconds => StartedAt is { } start && CompletedAt is { } end && end >= start ? (end - start).TotalSeconds : null;
     public DateTimeOffset At => CompletedAt ?? StartedAt!.Value;
 }
