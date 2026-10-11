@@ -52,6 +52,13 @@
   --shadow: #324a6809;
 }
 * { box-sizing: border-box; }
+.application-info { border-top:1px solid var(--divider); margin-top:20px; padding-top:16px; }
+.application-info h4 { color:var(--muted); font-size:10px; letter-spacing:1px; }
+.app-update-status { font-size:12px; color:var(--secondary); }
+.app-update-status.available { color:var(--on); }
+.app-update-indicator { padding:8px 10px; border:1px solid var(--on); border-radius:4px; color:var(--on); font-size:11px; text-decoration:none; }
+.topbar:has(.app-update-indicator:not([hidden])) { height:auto; min-height:76px; flex-wrap:wrap; padding-top:12px; padding-bottom:12px; }
+.topbar-actions { flex-wrap:wrap; }
 body { margin: 0; min-width: 320px; }
 button, input, select { font: inherit; }
 button, a, input, select { -webkit-tap-highlight-color: transparent; }

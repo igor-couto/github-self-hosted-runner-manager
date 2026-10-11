@@ -7,6 +7,7 @@ RUN chmod +x /fixture/package/RunnerRoom && \
     tar -czf /fixture/runner-room-linux-x64.tar.gz -C /fixture/package . && \
     cd /fixture && sha256sum runner-room-linux-x64.tar.gz > runner-room-linux-x64.tar.gz.sha256
 COPY install.sh /fixture/install.sh
+COPY uninstall.sh /fixture/uninstall.sh
 COPY tests/installer-mocks/ /usr/local/bin/
 COPY tests/installer-smoke.sh /fixture/test.sh
 COPY tests/access-smoke.sh /fixture/access-smoke.sh

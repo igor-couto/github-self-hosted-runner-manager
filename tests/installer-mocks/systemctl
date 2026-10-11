@@ -23,7 +23,12 @@ start_app() {
 }
 case "$1" in
     show)
-        printf 'Id=actions.runner.example.api.service\nLoadState=loaded\nActiveState=active\nSubState=running\n\n'
+        case "$*" in
+            *--property=FragmentPath*) printf '/etc/systemd/system/runner-room.service\n' ;;
+            *--property=ActiveState*)
+                if [[ -f /tmp/runner-room.pid ]]; then echo active; else echo inactive; fi ;;
+            *) printf 'Id=actions.runner.example.api.service\nLoadState=loaded\nActiveState=active\nSubState=running\n\n' ;;
+        esac
         ;;
     daemon-reload) : ;;
     enable) touch /tmp/runner-room.enabled ;;

@@ -193,5 +193,13 @@ bash /fixture/install.sh --runners "$runners" --port 8082 --version v0.1.1
 cmp /tmp/original-settings.json /etc/runner-room/settings.json
 curl -fsS http://127.0.0.1:8082/api/alerts | jq -e --arg id "$alert_id" '.history | any(.[]; .id == $id and .state == "resolved")'
 source /fixture/access-smoke.sh
-systemctl stop runner-room.service
-echo 'PASS: installation, discovery, metadata, jobs/logs, process states, metrics, analytics, scheduled alerts/recovery, rollback, updates and settings/history preservation.'
+cp /etc/runner-room/settings.json /tmp/pre-uninstall-settings.json
+bash /fixture/uninstall.sh --yes
+test ! -e /opt/runner-room/current
+test ! -e /etc/systemd/system/runner-room.service
+test ! -e /tmp/runner-room.pid
+test -f "$runners/build-one/.runner"
+test -s /var/lib/runner-room/analytics.json
+cmp /tmp/pre-uninstall-settings.json /etc/runner-room/settings.json
+bash /fixture/uninstall.sh --yes
+echo 'PASS: installation, discovery, metadata, jobs/logs, process states, metrics, analytics, scheduled alerts/recovery, rollback, updates, uninstall and settings/history preservation.'

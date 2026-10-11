@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: bash -n install.sh && shellcheck install.sh
+      - run: bash -n install.sh && bash -n uninstall.sh && shellcheck install.sh uninstall.sh
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
@@ -33,9 +33,11 @@ jobs:
         with:
           dotnet-version: '9.0.x'
       - name: Publish with bundled .NET runtime
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
         run: >-
           dotnet publish RunnerRoom.csproj -c Release -r ${{ matrix.rid }}
-          --self-contained true -p:InvariantGlobalization=true -o package
+          --self-contained true -p:InvariantGlobalization=true -p:Version="${RELEASE_TAG#v}" -o package
       - name: Package and checksum
         env:
           RID: ${{ matrix.rid }}
@@ -73,5 +75,5 @@ jobs:
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             gh release create "$TAG" --draft --verify-tag --title "Runner Room $TAG" --generate-notes
           fi
-          gh release upload "$TAG" release-assets/* install.sh --clobber
+          gh release upload "$TAG" release-assets/* install.sh uninstall.sh --clobber
           gh release edit "$TAG" --draft=false --latest

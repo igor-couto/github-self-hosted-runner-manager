@@ -3,6 +3,7 @@ WORKDIR /source
 COPY RunnerRoom.csproj global.json ./
 RUN dotnet restore
 COPY *.cs ./
+COPY uninstall.sh LICENSE ./
 COPY wwwroot ./wwwroot
 RUN dotnet publish -c Release -o /app --no-restore
 

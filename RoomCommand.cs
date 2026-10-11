@@ -18,7 +18,7 @@ internal static class RoomCommand
                 string Next() => i + 1 < args.Length ? args[++i] : throw new ArgumentException("Missing option value.");
                 switch (args[i])
                 {
-                    case "--help": Console.WriteLine("RunnerRoom cli [runners|server|history|alerts|management|quotas|start|stop|restart|drain|update] [--json] [--id ID] [--yes]\nRunnerRoom tui\nOptions: --url ORIGIN --user NAME --password-file PATH\nSign-in uses a local dashboard account; otherwise a password is prompted securely. Remote sign-in requires HTTPS.\nCLI actions require a managed runner ID and --yes. TUI: arrows select, Enter details, F active only, S sort, R refresh, Q quit."); return 0;
+                    case "--help": Console.WriteLine("RunnerRoom cli [runners|server|history|alerts|management|quotas|updates|start|stop|restart|drain|update] [--json] [--id ID] [--yes]\nRunnerRoom tui\nOptions: --url ORIGIN --user NAME --password-file PATH\nSign-in uses a local dashboard account; otherwise a password is prompted securely. Remote sign-in requires HTTPS.\nCLI actions require a managed runner ID and --yes. TUI: arrows select, Enter details, F active only, S sort, R refresh, Q quit."); return 0;
                     case "--url": url = Next(); break;
                     case "--user": user = Next(); break;
                     case "--password-file": passwordFile = Next(); break;
@@ -53,7 +53,7 @@ internal static class RoomCommand
                 }
                 else
                 {
-                    var path = command switch { "runners" => "/api/runners", "server" => "/api/system", "history" => "/api/history", "alerts" => "/api/alerts", "management" => "/api/management", "quotas" => "/api/quotas", _ => throw new ArgumentException("Unknown command. Use --help.") };
+                    var path = command switch { "runners" => "/api/runners", "server" => "/api/system", "history" => "/api/history", "alerts" => "/api/alerts", "management" => "/api/management", "quotas" => "/api/quotas", "updates" => "/api/updates", _ => throw new ArgumentException("Unknown command. Use --help.") };
                     data = await client.Get(path, cancel.Token);
                     if (command == "runners" && data.TryGetProperty("error", out var scanError) && scanError.ValueKind == JsonValueKind.String)
                         throw new InvalidOperationException("Runner scan unavailable: " + Safe(scanError.GetString()));

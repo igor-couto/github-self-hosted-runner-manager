@@ -14,7 +14,7 @@ jobs:
         run: |
           docker build -f tests/management.Dockerfile -t runner-room-management-checks .
           docker run --rm runner-room-management-checks
-      - run: bash -n install.sh && shellcheck install.sh
+      - run: bash -n install.sh && bash -n uninstall.sh && shellcheck install.sh uninstall.sh
       - name: Build Linux release for installer tests
         run: dotnet publish -c Release -r linux-x64 --self-contained true -p:InvariantGlobalization=true -o artifacts/package-linux-x64
       - name: Test installation and rollback in an isolated Linux container

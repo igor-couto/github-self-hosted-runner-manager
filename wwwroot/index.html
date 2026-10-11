@@ -33,6 +33,7 @@
       <span>RUNNER ROOM<small>SELF-HOSTED RUNNER MONITOR</small></span>
     </a>
     <div class="topbar-actions">
+      <a id="app-update-indicator" class="app-update-indicator" target="_blank" rel="noopener noreferrer" hidden>Update available</a>
       <button id="preferences-open" class="theme-toggle" type="button">Preferences</button>
       <button id="theme-toggle" class="theme-toggle" type="button" hidden>
         <svg class="icon sun" aria-hidden="true"><use href="#icon-sun"/></svg>
@@ -119,6 +120,15 @@
               <dl><div><dt>System uptime</dt><dd id="system-uptime">—</dd></div></dl>
             </section>
             <dl class="monitor-details"><div><dt>Refresh interval</dt><dd>15 seconds</dd></div><div><dt>Last scan</dt><dd id="updated">—</dd></div><div><dt>Status source</dt><dd>Local processes</dd></div></dl>
+            <section class="application-info" aria-labelledby="app-update-title">
+              <h4 id="app-update-title">RUNNER ROOM</h4>
+              <dl><div><dt>Installed version</dt><dd id="app-installed-version">—</dd></div><div><dt>Latest release</dt><dd id="app-latest-version">—</dd></div></dl>
+              <p id="app-update-status" class="app-update-status" role="status">Checking for updates…</p>
+              <p id="app-update-message" class="detail-hint"></p>
+              <p id="app-update-checked" class="detail-hint"></p>
+              <a id="app-release-link" class="project-link" target="_blank" rel="noopener noreferrer" hidden>View release notes ↗</a>
+              <p class="detail-hint">To update, run your original installer command on the server. Updates are not installed automatically.</p>
+            </section>
           </div>
           <div class="server-footer"><svg class="icon" aria-hidden="true"><use href="#icon-shield"/></svg>Read-only monitoring</div>
         </section>
@@ -292,6 +302,7 @@
   <script src="/workspace.js" defer></script>
   <script src="/integration.js" defer></script>
   <script src="/management.js" defer></script>
+  <script src="/application-updates.js" defer></script>
   <script src="/dashboard.js" defer></script>
   <script src="/details.js" defer></script>
   <script src="/i18n.js" defer></script>

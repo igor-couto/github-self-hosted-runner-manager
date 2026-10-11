@@ -1,0 +1,5 @@
+**
+!install.sh
+!uninstall.sh
+!tests/
+!tests/uninstall-smoke.sh

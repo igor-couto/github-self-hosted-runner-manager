@@ -11,6 +11,11 @@ if (args is ["--hash-password"])
     AccessAccounts.HashPasswordCommand();
     return;
 }
+if (args is ["--version"])
+{
+    Console.WriteLine($"Runner Room {AppUpdateService.InstalledVersion}");
+    return;
+}
 // The installer checks the bundled runtime before replacing a working installation.
 if (args is ["--check-runtime"])
 {
@@ -37,6 +42,8 @@ builder.Services.AddSingleton<AlertService>();
 builder.Services.AddHostedService(services => services.GetRequiredService<AlertService>());
 builder.Services.AddSingleton<QuotaService>();
 builder.Services.AddHostedService(services => services.GetRequiredService<QuotaService>());
+builder.Services.AddSingleton<AppUpdateService>();
+builder.Services.AddHostedService(services => services.GetRequiredService<AppUpdateService>());
 var app = builder.Build();
 app.Use(async (context, next) =>
 {
@@ -59,6 +66,7 @@ app.MapGet("/api/history/jobs/{id}", (string id, AnalyticsService history) => hi
 app.MapGet("/api/history/export", (string? from, string? to, string? runner, string? result, AnalyticsService history) => history.Get(from, to, runner, result, 1, true));
 app.MapGet("/api/alerts", (AlertService alerts) => alerts.Current());
 app.MapGet("/api/quotas", (QuotaService quotas) => quotas.Current).WithMetadata(new AdminAccess());
+app.MapGet("/api/updates", (AppUpdateService updates) => updates.Current);
 app.MapPost("/api/alerts/check", (HttpRequest request, AlertService alerts) =>
 {
     // JSON-only, same-origin UI action; form posts and cross-origin requests cannot trigger notifications.

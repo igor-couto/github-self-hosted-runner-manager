@@ -28,6 +28,8 @@ Runner Room installer (Linux with systemd, x64, ARM32, or ARM64)
 
 Re-running the same command updates the application and reapplies these settings.
 No .NET SDK/runtime, Git, Docker, or GitHub token is required.
+Uninstall later: sudo bash /opt/runner-room/current/uninstall.sh
+Settings, history, and runner installations are preserved when uninstalling.
 HELP
     }
     while (($#)); do
@@ -90,6 +92,13 @@ HELP
     if [[ -f $unit ]] && ! grep -qx '# Managed by the Runner Room installer' "$unit"; then
         die 'runner-room.service already exists and was not created by this installer. Back up and remove that service first.'
     fi
+    for directory in /opt "$prefix" "$prefix/releases"; do
+        [[ ! -L $directory ]] || die "$directory must not be a symbolic link."
+        if [[ -e $directory ]]; then
+            [[ -d $directory && $(stat -c %u -- "$directory") == 0 ]] || die "$directory must be a root-owned directory."
+            (( (8#$(stat -c %a -- "$directory") & 8#022) == 0 )) || die "$directory must not be writable by other users."
+        fi
+    done
     [[ ! -e $prefix/current || -L $prefix/current ]] || die "$prefix/current must be an installer-managed symbolic link."
     work_dir=$(mktemp -d /tmp/runner-room-install.XXXXXXXX)
     cleanup() {
@@ -151,6 +160,15 @@ HELP
     chmod 755 "$release_dir"
     tar -xzf "$work_dir/$asset" -C "$release_dir" --no-same-owner --no-same-permissions
     [[ -f $release_dir/RunnerRoom && -f $release_dir/wwwroot/index.html ]] || die 'The release does not contain the application and web page.'
+    # Record exactly what this release owns. Uninstall never recursively deletes
+    # release directories: files subsequently added by users remain untouched.
+    find "$release_dir" -type d -exec chmod go-w {} +
+    find "$release_dir" -type f -exec chmod go-w {} +
+    {
+        printf 'runner-room-release-v1\0'
+        find "$release_dir" -mindepth 1 -depth ! -path "$release_dir/.runner-room-manifest" -printf '%y%P\0'
+    } >"$release_dir/.runner-room-manifest"
+    chmod 600 "$release_dir/.runner-room-manifest"
     chmod 755 "$release_dir/RunnerRoom"
     runuser -u "$service_user" -- "$release_dir/RunnerRoom" --check-runtime || die 'The bundled runtime cannot start. Use a supported glibc Linux distribution with its standard native libraries.'
     [[ ! -f $config ]] || cp -- "$config" "$work_dir/old.env"
@@ -210,6 +228,9 @@ UNIT
     printf '\nRunner Room is running.\n  Dashboard: http://%s:%s\n  Runners:   %s\n  User:      %s\n  Settings:  %s\n' \
         "${address:-YOUR_SERVER_IP}" "$port" "$runners" "$service_user" "$config"
     printf '\nIf a firewall is enabled, allow this port from your LAN. Configure Access in settings.json to require login; otherwise LAN access is open.\n'
+    if [[ -f $release_dir/uninstall.sh ]]; then
+        printf 'Uninstall: sudo bash /opt/runner-room/current/uninstall.sh\n'
+    fi
     cleanup
 }
 
