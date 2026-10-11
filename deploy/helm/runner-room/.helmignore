@@ -1,0 +1,4 @@
+.git/
+*.tgz
+values-linux.yaml
+values-private.yaml

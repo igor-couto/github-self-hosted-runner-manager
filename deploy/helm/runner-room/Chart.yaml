@@ -1,0 +1,9 @@
+apiVersion: v2
+name: runner-room
+description: A single-host GitHub runner dashboard with persistent history
+type: application
+version: 0.1.0
+kubeVersion: ">=1.25.0-0"
+home: https://github.com/igor-couto/github-self-hosted-runner-manager
+sources:
+  - https://github.com/igor-couto/github-self-hosted-runner-manager

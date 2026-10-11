@@ -1,0 +1,10 @@
+{{- if not .Values.existingSettingsSecret }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "runner-room.fullname" . }}
+  labels:
+    {{- include "runner-room.labels" . | nindent 4 }}
+data:
+  settings.json: {{ .Values.settings | toJson | quote }}
+{{- end }}

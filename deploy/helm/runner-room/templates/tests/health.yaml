@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "runner-room.fullname" . | trunc 55 | trimSuffix "-" }}-health
+  labels:
+    {{- include "runner-room.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  {{- with .Values.imagePullSecrets }}
+  imagePullSecrets:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  nodeSelector:
+    kubernetes.io/os: linux
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: {{ .Values.runAsUser }}
+    runAsGroup: {{ .Values.runAsGroup }}
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: health
+      image: {{ include "runner-room.image" . | quote }}
+      imagePullPolicy: {{ .Values.image.pullPolicy }}
+      command: [curl]
+      args: ["--noproxy", "*", "--fail", "--silent", "--show-error", "--max-time", "10", {{ printf "http://%s:%v/healthz" (include "runner-room.fullname" .) .Values.service.port | quote }}]
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: [ALL]

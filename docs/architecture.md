@@ -40,6 +40,8 @@ tests/
     Interfaces/                      Client and terminal checks
   ...                                Browser checks and Linux integration fixtures
 docs/                                Architecture notes and README screenshots
+deploy/compose/                      Linux and demo Compose deployments
+deploy/helm/runner-room/              Helm chart, values and Kubernetes templates
 .github/workflows/                   Continuous integration and release packaging
 Dockerfile                           Main application image, built from the repository root
 install.sh / uninstall.sh            Linux installation and removal scripts

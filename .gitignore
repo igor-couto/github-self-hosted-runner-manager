@@ -5,3 +5,8 @@ publish/
 artifacts/
 *.user
 settings.json
+deploy/compose/.env
+deploy/compose/config/*
+!deploy/compose/config/settings.example.json
+deploy/helm/runner-room/values-linux.yaml
+deploy/helm/runner-room/values-private.yaml

@@ -1,6 +1,18 @@
 name: Build
 on: [push, pull_request]
 jobs:
+  deployments:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate Helm and test the Compose deployment
+        run: node tests/deployment.cjs
   build:
     runs-on: ubuntu-latest
     steps:

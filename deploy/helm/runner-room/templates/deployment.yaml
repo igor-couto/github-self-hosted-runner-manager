@@ -1,0 +1,177 @@
+{{- if and (not .Values.demo) (not .Values.hostMonitoring.enabled) }}
+{{- fail "Real monitoring requires hostMonitoring.enabled, nodeName and runnerPaths; use demo=true for a portable preview." }}
+{{- end }}
+{{- if .Values.hostMonitoring.enabled }}
+{{- if or (not .Values.hostMonitoring.nodeName) (not .Values.hostMonitoring.runnerPaths) }}
+{{- fail "Host monitoring requires hostMonitoring.nodeName and at least one runnerPaths entry." }}
+{{- end }}
+{{- range .Values.hostMonitoring.runnerPaths }}
+{{- if or (contains "/../" (printf "%s/" .)) (contains "/./" (printf "%s/" .)) (regexMatch "^/(app|etc|proc|sys|dev|run|tmp|var/lib/runner-room)(/|$)" .) }}
+{{- fail "runnerPaths must not contain dot segments or shadow application, state or system directories." }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if and .Values.credentialKeys (not .Values.credentialsSecret) }}
+{{- fail "credentialKeys requires credentialsSecret." }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "runner-room.fullname" . }}
+  labels:
+    {{- include "runner-room.labels" . | nindent 4 }}
+spec:
+  # State files and process collectors have a single writer.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "runner-room.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "runner-room.selectorLabels" . | nindent 8 }}
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        checksum/settings: {{ .Values.settings | toJson | sha256sum }}
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.hostMonitoring.enabled }}
+      hostPID: true
+      {{- if .Values.hostMonitoring.hostNetwork }}
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      {{- end }}
+      {{- end }}
+      nodeSelector:
+        kubernetes.io/os: linux
+        {{- if .Values.hostMonitoring.enabled }}
+        kubernetes.io/hostname: {{ .Values.hostMonitoring.nodeName | quote }}
+        {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: {{ .Values.runAsUser }}
+        runAsGroup: {{ .Values.runAsGroup }}
+        fsGroup: {{ .Values.runAsGroup }}
+        fsGroupChangePolicy: OnRootMismatch
+        {{- with .Values.supplementalGroups }}
+        supplementalGroups:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: dashboard
+          image: {{ include "runner-room.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          env:
+            - name: ASPNETCORE_URLS
+              value: http://+:8080
+            - name: SettingsFile
+              value: /etc/runner-room/settings.json
+            - name: STATE_DIRECTORY
+              value: /var/lib/runner-room
+            - name: Monitoring__StateDirectory
+              value: /var/lib/runner-room
+            - name: Demo
+              value: {{ .Values.demo | quote }}
+            - name: Management__Enabled
+              value: "false"
+            - name: DOTNET_EnableDiagnostics
+              value: "0"
+            {{- if .Values.hostMonitoring.enabled }}
+            {{- range $i, $path := .Values.hostMonitoring.runnerPaths }}
+            - name: RunnersRoots__{{ $i }}
+              value: {{ $path | quote }}
+            {{- end }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: 8080
+          startupProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 30
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: settings
+              mountPath: /etc/runner-room/settings.json
+              subPath: settings.json
+              readOnly: true
+            - name: state
+              mountPath: /var/lib/runner-room
+            - name: tmp
+              mountPath: /tmp
+            {{- if .Values.hostMonitoring.enabled }}
+            {{- range $i, $path := .Values.hostMonitoring.runnerPaths }}
+            - name: runners-{{ $i }}
+              mountPath: {{ $path | quote }}
+              readOnly: true
+            {{- end }}
+            {{- end }}
+            {{- range .Values.credentialKeys }}
+            - name: credentials
+              mountPath: {{ printf "/etc/runner-room/secrets/%s" . | quote }}
+              subPath: {{ . | quote }}
+              readOnly: true
+            {{- end }}
+      volumes:
+        - name: settings
+          {{- if .Values.existingSettingsSecret }}
+          secret:
+            secretName: {{ .Values.existingSettingsSecret | quote }}
+            defaultMode: 0440
+          {{- else }}
+          configMap:
+            name: {{ include "runner-room.fullname" . }}
+          {{- end }}
+        - name: state
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "runner-room.claim" . }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Mi
+        {{- if .Values.hostMonitoring.enabled }}
+        {{- range $i, $path := .Values.hostMonitoring.runnerPaths }}
+        - name: runners-{{ $i }}
+          hostPath:
+            path: {{ $path | quote }}
+            type: Directory
+        {{- end }}
+        {{- end }}
+        {{- if .Values.credentialKeys }}
+        - name: credentials
+          secret:
+            secretName: {{ .Values.credentialsSecret | quote }}
+            defaultMode: 0440
+        {{- end }}

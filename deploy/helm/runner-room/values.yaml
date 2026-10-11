@@ -1,0 +1,69 @@
+# Build and push the Dockerfile image, or load it into your local cluster.
+image:
+  repository: runner-room
+  tag: local
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Default mode uses labeled sample data and requires no host access.
+demo: true
+hostMonitoring:
+  enabled: false
+  # Required for real monitoring: kubernetes.io/hostname label of the runner node.
+  nodeName: ""
+  # Each path is mounted read-only at the identical absolute path in the pod.
+  runnerPaths: []
+  # Optional host network metrics; also binds port 8080 on the node.
+  hostNetwork: false
+
+runAsUser: 1654
+runAsGroup: 1654
+supplementalGroups: []
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+persistence:
+  enabled: true
+  existingClaim: ""
+  size: 1Gi
+  # null uses the cluster default; "" explicitly disables dynamic provisioning.
+  storageClass: null
+  # Preserve a chart-created PVC on uninstall.
+  retain: true
+
+service:
+  type: ClusterIP
+  port: 8080
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  host: runner-room.example.com
+  tls: []
+
+# Prefer an existing Secret containing settings.json for credentials/authentication.
+existingSettingsSecret: ""
+settings:
+  Discovery:
+    Recursive: true
+    MaxDepth: 4
+  Access:
+    Enabled: false
+  Alerts:
+    Enabled: true
+    CheckIntervalSeconds: 60
+    Rules: []
+
+# Optional Secret keys mounted as regular files at /etc/runner-room/secrets/<key>.
+# Refer to those paths from GitHub.TokenFile, Alerts.WebhookUrlFile, etc.
+credentialsSecret: ""
+credentialKeys: []
+tolerations: []
+podAnnotations: {}

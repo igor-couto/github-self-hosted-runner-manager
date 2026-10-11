@@ -1,0 +1,12 @@
+demo: false
+image:
+  repository: ghcr.io/YOUR-ACCOUNT/runner-room
+  tag: YOUR-IMMUTABLE-TAG
+hostMonitoring:
+  enabled: true
+  nodeName: YOUR-RUNNER-NODE
+  runnerPaths:
+    - /home/github-runner/actions-runner
+# Numeric identity of the Linux account running Runner.Listener.
+runAsUser: 1001
+runAsGroup: 1001

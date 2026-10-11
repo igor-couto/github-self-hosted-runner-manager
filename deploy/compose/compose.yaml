@@ -1,0 +1,79 @@
+name: runner-room
+
+x-image: &image
+  image: ${RUNNER_ROOM_IMAGE:-runner-room:local}
+  build:
+    context: ../..
+    dockerfile: Dockerfile
+    args:
+      VERSION: ${APP_VERSION:-0.0.0-dev}
+
+services:
+  state-init:
+    <<: *image
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - 'chown "$${OWNER}" /state && chmod 700 /state'
+    environment:
+      OWNER: "${RUNNER_UID:?Set RUNNER_UID to the Linux runner account UID}:${RUNNER_GID:?Set RUNNER_GID to its GID}"
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, FOWNER, DAC_OVERRIDE]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      disable: true
+    volumes:
+      - state:/state
+    restart: "no"
+
+  dashboard:
+    <<: *image
+    depends_on:
+      state-init:
+        condition: service_completed_successfully
+    user: "${RUNNER_UID}:${RUNNER_GID}"
+    hostname: ${RUNNER_HOSTNAME:-runner-host}
+    pid: host
+    restart: unless-stopped
+    stop_grace_period: 30s
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      SettingsFile: /etc/runner-room/settings.json
+      STATE_DIRECTORY: /var/lib/runner-room
+      Monitoring__StateDirectory: /var/lib/runner-room
+      RunnersRoot: ${RUNNERS_ROOT:?Set RUNNERS_ROOT to the absolute host runner directory}
+      Management__Enabled: "false"
+      DOTNET_EnableDiagnostics: "0"
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${PORT:-8080}:8080"
+    volumes:
+      - type: bind
+        source: ${RUNNERS_ROOT}
+        target: ${RUNNERS_ROOT}
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./config
+        target: /etc/runner-room
+        read_only: true
+        bind:
+          create_host_path: false
+      - state:/var/lib/runner-room
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,mode=1777
+    mem_limit: 512m
+    cpus: 1.0
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  state:

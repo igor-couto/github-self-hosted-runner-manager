@@ -98,6 +98,10 @@ The service runs as the selected account. Application files live under `/opt/run
 
 Access is open to your trusted LAN by default. Enable the optional sign-in and permissions described below to restrict access. If your firewall blocks the chosen port, allow it from your home subnet. The installer does not change firewall rules or expose the dashboard through your router.
 
+## Container deployments
+
+Use the [Docker Compose and Helm deployment guide](docs/deployment.md) for packaged deployments with persistent state, health checks, configuration and secret mounting, and upgrade/backup instructions. Compose includes a Linux host-monitoring setup and a portable demo; Helm includes a node-pinned monitoring deployment, optional ingress and retained storage. These dashboard deployments keep host runner directories read-only and disable runner management.
+
 ## What the status means
 
 - **Busy:** a local `Runner.Worker` from that installation is running.

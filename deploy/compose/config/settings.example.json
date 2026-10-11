@@ -1,0 +1,8 @@
+{
+  "Discovery": { "Recursive": true, "MaxDepth": 4 },
+  "Monitoring": { "HistoryDays": 7 },
+  "Analytics": { "RetentionDays": 30 },
+  "Alerts": { "Enabled": true, "CheckIntervalSeconds": 60, "Rules": [] },
+  "Access": { "Enabled": false },
+  "Management": { "Enabled": false }
+}
