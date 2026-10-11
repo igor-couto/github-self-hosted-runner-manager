@@ -1,5 +1,10 @@
 # Runner Room
 
+[![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white)](https://github.com/igor-couto/github-self-hosted-runner-manager)
+![GitHub Integration](https://img.shields.io/badge/GitHub-Integrated-2EA44F?logo=github&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?logo=githubactions&logoColor=white)
+[![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/igor-couto/github-self-hosted-runner-manager/blob/main/LICENSE)
+
 A dashboard for monitoring and managing GitHub Actions runners on your Linux server, including Raspberry Pi. Install it with one command and open it on your local network. Local monitoring works without a GitHub token.
 
 [Install](#install) · [Support](#support) · [License](#license)
@@ -502,12 +507,12 @@ RunnerRoom cli drain --id MANAGED_ID --yes --url https://runners.example.com --u
 
 ### Desktop exploration: Windows tray prototype
 
-`desktop/RunnerRoom.Tray` is an optional .NET Windows Forms companion. It connects to your existing server, polls every 15 seconds, shows fleet counts/status, opens the browser dashboard, and exposes start/drain/restart requests for administrators with confirmation. Requests are queued on the server and tracked in the management page. Select **Connect…** from its tray menu; the prototype does not persist credentials, install itself or run at startup.
+`src/RunnerRoom.Tray` is an optional .NET Windows Forms companion. It connects to your existing server, polls every 15 seconds, shows fleet counts/status, opens the browser dashboard, and exposes start/drain/restart requests for administrators with confirmation. Requests are queued on the server and tracked in the management page. Select **Connect…** from its tray menu; the prototype does not persist credentials, install itself or run at startup.
 
 ```powershell
-dotnet run --project desktop/RunnerRoom.Tray
+dotnet run --project src/RunnerRoom.Tray
 # Optional standalone Windows build:
-dotnet publish desktop/RunnerRoom.Tray -c Release -r win-x64 --self-contained true
+dotnet publish src/RunnerRoom.Tray -c Release -r win-x64 --self-contained true
 ```
 
 This is a Windows-only prototype, separate from the Linux release. The PWA is the portable desktop/phone interface. Native Linux tray/macOS menu-bar packaging is not included. [Windows NotifyIcon documentation](https://learn.microsoft.com/en-us/dotnet/desktop/winforms/controls/notifyicon-component-overview-windows-forms).
@@ -548,15 +553,17 @@ Amounts may be null when unknown; at least one is required. When all three are s
 
 ## Development and checks
 
+Production projects live under `src/`, checks and fixtures under `tests/`, and the solution at `RunnerRoom.sln`. The main application, including its HTML, CSS and JavaScript, is in `src/RunnerRoom/`; the optional tray client is in `src/RunnerRoom.Tray/`.
+
 Requires the .NET 9 SDK:
 
 ```bash
-dotnet run -- --Demo true --urls http://127.0.0.1:8080
+dotnet run --project src/RunnerRoom -- --Demo true --urls http://127.0.0.1:8080
 ```
 
 Open `http://localhost:8080`. Demo data is explicitly labeled. To inspect real Linux runners, replace `--Demo true` with `--RunnersRoot /path/to/runners`.
 
-Build with `dotnet build`. Check system metric parsing and failure cases with `dotnet run --project tests/RunnerRoom.Tests`. For a Docker demo:
+Run these commands from the repository root. Build the solution with `dotnet build`, or just the server with `dotnet build src/RunnerRoom`. Check system metric parsing and failure cases with `dotnet run --project tests/RunnerRoom.Tests`. For a Docker demo:
 
 ```bash
 docker build -t runner-room .
@@ -568,7 +575,7 @@ docker run --rm -p 127.0.0.1:8080:8080 runner-room --Demo true
 For installer tests:
 
 ```bash
-dotnet publish -c Release -r linux-x64 --self-contained true -p:InvariantGlobalization=true -o artifacts/package-linux-x64
+dotnet publish src/RunnerRoom/RunnerRoom.csproj -c Release -r linux-x64 --self-contained true -p:InvariantGlobalization=true -o artifacts/package-linux-x64
 docker build -f tests/installer.Dockerfile -t runner-room-installer-test .
 docker run --rm runner-room-installer-test
 ```
@@ -603,3 +610,7 @@ Remove passwords, tokens, runner credentials, and other private information befo
 ## License
 
 Runner Room is available under the [MIT License](LICENSE).
+
+## Author
+
+* **Igor Couto** - [igor.fcouto@gmail.com](mailto:igor.fcouto@gmail.com)
