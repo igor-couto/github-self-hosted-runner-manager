@@ -555,6 +555,8 @@ Amounts may be null when unknown; at least one is required. When all three are s
 
 Production projects live under `src/`, checks and fixtures under `tests/`, and the solution at `RunnerRoom.sln`. The main application, including its HTML, CSS and JavaScript, is in `src/RunnerRoom/`; the optional tray client is in `src/RunnerRoom.Tray/`.
 
+See [Project structure](docs/architecture.md) for folder ownership, namespaces and build conventions.
+
 Requires the .NET 9 SDK:
 
 ```bash

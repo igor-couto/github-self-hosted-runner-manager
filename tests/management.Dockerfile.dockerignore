@@ -1,6 +1,7 @@
-bin
-obj
+**/bin
+**/obj
+**/publish
+**/TestResults
 artifacts
 .git
-tests/RunnerRoom.Tests/bin
-tests/RunnerRoom.Tests/obj
+.vs

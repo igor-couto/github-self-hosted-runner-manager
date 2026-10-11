@@ -8,7 +8,7 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
-      - run: dotnet build -c Release
+      - run: dotnet build src/RunnerRoom/RunnerRoom.csproj -c Release
       - run: dotnet run --project tests/RunnerRoom.Tests -c Release
       - name: Test managed runner lifecycle as a non-root Linux account
         run: |
@@ -16,7 +16,7 @@ jobs:
           docker run --rm runner-room-management-checks
       - run: bash -n install.sh && bash -n uninstall.sh && shellcheck install.sh uninstall.sh
       - name: Build Linux release for installer tests
-        run: dotnet publish -c Release -r linux-x64 --self-contained true -p:InvariantGlobalization=true -o artifacts/package-linux-x64
+        run: dotnet publish src/RunnerRoom/RunnerRoom.csproj -c Release -r linux-x64 --self-contained true -p:InvariantGlobalization=true -o artifacts/package-linux-x64
       - name: Test installation and rollback in an isolated Linux container
         run: |
           docker build -f tests/installer.Dockerfile -t runner-room-installer-test .

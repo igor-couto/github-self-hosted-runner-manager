@@ -1,5 +1,14 @@
 using System.Globalization;
-using RunnerRoom;
+
+using RunnerRoom.Features.Monitoring;
+using RunnerRoom.Tests.Features.Access;
+using RunnerRoom.Tests.Features.Alerts;
+using RunnerRoom.Tests.Features.Analytics;
+using RunnerRoom.Tests.Features.Maintenance;
+using RunnerRoom.Tests.Features.Management;
+using RunnerRoom.Tests.Features.Monitoring;
+using RunnerRoom.Tests.Features.Runners;
+using RunnerRoom.Tests.Interfaces;
 
 var checks = 0;
 void Check(bool condition, string description)
@@ -63,4 +72,5 @@ await AlertChecks.Run(Check);
 AccessChecks.Run(Check);
 await ManagementChecks.Run(Check);
 await InterfaceChecks.Run(Check);
+await UpdateChecks.Run(Check);
 Console.WriteLine($"PASS: {checks} system, inventory, job, log, monitoring, analytics, alert, access and management checks.");

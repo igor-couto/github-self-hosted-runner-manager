@@ -36,7 +36,7 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: >-
-          dotnet publish RunnerRoom.csproj -c Release -r ${{ matrix.rid }}
+          dotnet publish src/RunnerRoom/RunnerRoom.csproj -c Release -r ${{ matrix.rid }}
           --self-contained true -p:InvariantGlobalization=true -p:Version="${RELEASE_TAG#v}" -o package
       - name: Package and checksum
         env:

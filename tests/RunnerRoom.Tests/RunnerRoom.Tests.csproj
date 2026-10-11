@@ -6,6 +6,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../RunnerRoom.csproj" />
+    <ProjectReference Include="../../src/RunnerRoom/RunnerRoom.csproj" />
   </ItemGroup>
 </Project>
