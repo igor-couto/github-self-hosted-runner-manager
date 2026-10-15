@@ -31,8 +31,8 @@ function renderAlerts() {
     const table=$(id).querySelector(".monitor-table-wrap");
     if(table){table.tabIndex=0;table.setAttribute("role","region");table.setAttribute("aria-label",id==="alerts-rules"?"Configured rules, scroll for more columns":"Alert history, scroll for more records");}
   }
-  $("alerts-check").disabled=!data.enabled||!alertsReachable||Date.now()<alertsBusyUntil||!window.dashboardAccess?.canAdmin;
-  $("alerts-check").title=window.dashboardAccess?.canAdmin?"Request a health check":"Administrator access required";
+  $("alerts-check").disabled=!data.enabled||!alertsReachable||Date.now()<alertsBusyUntil||!window.dashboardAccess?.canOperate;
+  $("alerts-check").title=window.dashboardAccess?.canOperate?"Request a health check":"Administrator access required";
   const stale=data.enabled&&data.lastCheckedAt&&Date.now()-Date.parse(data.lastCheckedAt)>Math.max(90,data.checkIntervalSeconds*2)*1000;
   $("alerts-warning").textContent=[...data.warnings,...(stale?["Scheduled checks are overdue; displayed alert states may be out of date."]:[])].join(" ");
   $("alerts-warning").hidden=!$("alerts-warning").textContent;
@@ -57,7 +57,7 @@ $("alerts-check").addEventListener("click",async()=>{
     $("alerts-warning").textContent="Check queued. Results will refresh shortly.";$("alerts-warning").hidden=false;
     setTimeout(refreshAlerts,1500);
   } catch(error){$("alerts-warning").textContent=error.message;$("alerts-warning").hidden=false;}
-  finally {setTimeout(()=>{if(alertsData?.enabled&&alertsReachable&&Date.now()>=alertsBusyUntil&&window.dashboardAccess?.canAdmin)$("alerts-check").disabled=false;},10000);}
+  finally {setTimeout(()=>{if(alertsData?.enabled&&alertsReachable&&Date.now()>=alertsBusyUntil&&window.dashboardAccess?.canOperate)$("alerts-check").disabled=false;},10000);}
 });
 $("refresh").addEventListener("click",refreshAlerts);
 refreshAlerts();setInterval(refreshAlerts,15000);

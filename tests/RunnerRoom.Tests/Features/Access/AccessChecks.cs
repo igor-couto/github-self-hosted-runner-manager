@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 
 using RunnerRoom.Configuration;
 using RunnerRoom.Features.Access;
+using RunnerRoom.Features.Management;
 
 namespace RunnerRoom.Tests.Features.Access;
 
@@ -15,13 +16,15 @@ internal static class AccessChecks
         const string password = "test-only-password-42";
         var hash = AccessAccounts.Hasher.HashPassword("admin", password);
         var options = new AccessOptions { Enabled = true, PublicOrigin = "https://runner.example",
-            LocalUsers = [new("admin", hash, "admin"), new("reader", hash, "viewer")],
+            LocalUsers = [new("admin", hash, "admin"), new("reader", hash, "viewer"), new("operator", hash, "operator")],
             GitHubClientId = "test-client", GitHubClientSecretFile = "/unused/unit-test",
             GitHubUsers = [new("42", "viewer")] };
         var accounts = new AccessAccounts(options);
         var admin = accounts.Login("ADMIN", password);
         check(admin is not null && admin.IsInRole("admin") && accounts.ValidSession(admin), "Valid local credentials create a role-bound session with case-insensitive username matching.");
         check(accounts.Login("reader", password)?.IsInRole("viewer") == true, "Viewer credentials never create an admin session.");
+        var operatorUser = accounts.Login("operator", password)!;
+        check(operatorUser.IsInRole("operator") && !operatorUser.IsInRole("admin") && accounts.ValidSession(operatorUser), "Operators have valid role-bound sessions without administrator privileges.");
         check(accounts.Login("admin", "wrong") is null && accounts.Login("unknown", password) is null &&
             accounts.Login("invalid username", password) is null, "Invalid local sign-ins are rejected.");
         check(!JsonSerializer.Serialize(admin!.Claims.Select(c => c.Value)).Contains(hash), "Session claims do not contain password hashes.");
@@ -31,6 +34,7 @@ internal static class AccessChecks
         var changedRole = new AccessAccounts(new() { Enabled = true, PublicOrigin = "https://runner.example", LocalUsers = [
             new("admin", hash, "viewer"), new("other", hash, "admin")] });
         check(!changedRole.ValidSession(admin), "Role changes invalidate existing sessions.");
+        check(!new AccessAccounts(new() { Enabled = true, PublicOrigin = "https://runner.example", LocalUsers = [new("admin", hash, "admin"), new("operator", hash, "viewer")] }).ValidSession(operatorUser), "Downgrading an operator invalidates their existing session.");
         check(!accounts.ValidSession(new(new ClaimsIdentity([new(ClaimTypes.NameIdentifier, "local:removed")], "Session"))), "Removed and incomplete identities cannot reuse a session.");
         using var allowed = JsonDocument.Parse("""{"id":42,"login":"renamed-user"}""");
         var github = AccessSetup.GitHubIdentity(accounts, allowed.RootElement);
@@ -48,6 +52,8 @@ internal static class AccessChecks
             catch (InvalidOperationException) { return true; }
         }
         check(Invalid(new() { Enabled = true, PublicOrigin = "https://runner.example" }), "Enabled access without an administrator fails closed.");
+        check(Invalid(new() { Enabled = true, PublicOrigin = "https://runner.example", LocalUsers = [new("operator", hash, "operator")] }), "Operator accounts cannot replace the required administrator.");
+        check(!AccessAccounts.ValidRole("owner") && !AccessAccounts.ValidRole("Operator") && !AccessAccounts.ValidRole(null), "Unknown and incorrectly cased roles fail closed.");
         check(Invalid(new() { Enabled = true, PublicOrigin = "https://runner.example", LocalUsers = [new("admin", "not-a-hash", "admin")] }), "Placeholder or malformed password hashes fail startup.");
         check(Invalid(new() { Enabled = true, PublicOrigin = "http://runner.example", LocalUsers = [new("admin", hash, "admin")] }), "HTTPS is required by default.");
         check(Invalid(new() { Enabled = true, PublicOrigin = "https://runner.example/path", LocalUsers = [new("admin", hash, "admin")] }), "Canonical origin cannot contain a path.");
@@ -55,6 +61,15 @@ internal static class AccessChecks
         check(Invalid(new() { Enabled = true, PublicOrigin = "https://runner.example", GitHubUsers = [new("42", "admin")] }), "GitHub-only access requires OAuth configuration.");
         var context = new DefaultHttpContext { User = accounts.Login("reader", password)! };
         check(!AccessSetup.IsAdmin(context, new() { Access = options }) && AccessSetup.IsAdmin(context, new()), "Server permissions distinguish authenticated viewer mode from explicitly open LAN mode.");
+        check(!AccessSetup.IsOperator(context, new() { Access = options }), "Viewers cannot perform operator actions.");
+        var operatorContext = new DefaultHttpContext { User = operatorUser };
+        check(AccessSetup.IsOperator(operatorContext, new() { Access = options }) && !AccessSetup.IsAdmin(operatorContext, new() { Access = options }), "Operators can operate runners but cannot administer the installation.");
+        check(AccessSetup.IsOperator(new DefaultHttpContext { User = admin }, new() { Access = options }), "Administrators retain operator capabilities.");
+        check(!AccessSetup.IsOperator(new DefaultHttpContext(), new() { Access = options }), "Unauthenticated requests cannot operate an authenticated dashboard.");
+        foreach (var action in new[] { "start", "stop", "restart", "drain" })
+            check(ManagementSetup.OperatorRunnerAction(action), "Operators can request the operational action " + action + ".");
+        foreach (var action in new[] { "register", "unregister", "remove", "update", "create", "configure", "unknown", "START", null })
+            check(!ManagementSetup.OperatorRunnerAction(action), "The operator action allowlist rejects administrative and unknown actions.");
         var root = Path.Combine(Path.GetTempPath(), "runner-room-access-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         try

@@ -47,7 +47,10 @@
     "GitHubClientSecretFile": null
   },
   "GitHub": {
-    "TokenFile": "/etc/runner-room/github.token"
+    "TokenFile": "/etc/runner-room/github.token",
+    "Sync": { "Enabled": true, "IntervalMinutes": 5, "HistoryDays": 30, "MaxRepositories": 25, "MaxRunsPerRepository": 100, "MaxJobsPerRun": 100 },
+    "App": { "AppId": 0, "InstallationId": 0, "PrivateKeyFile": null },
+    "WebhookSecretFile": null
   },
   "Management": {
     "Enabled": false,

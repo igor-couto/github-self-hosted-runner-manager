@@ -27,14 +27,14 @@ internal sealed class AccessAccounts
             options.LocalUsers.Select(u => u.Username).Distinct(StringComparer.OrdinalIgnoreCase).Count() != options.LocalUsers.Length ||
             options.GitHubUsers.Any(u => u is null || !long.TryParse(u.Id, out var id) || id <= 0 || id.ToString() != u.Id || !ValidRole(u.Role)) ||
             options.GitHubUsers.Select(u => u.Id).Distinct().Count() != options.GitHubUsers.Length)
-            throw new InvalidOperationException("Access users must have unique valid identities and a viewer or admin role.");
+            throw new InvalidOperationException("Access users must have unique valid identities and a viewer, operator or admin role.");
         if (!options.LocalUsers.Any(u => u.Role == "admin") && !options.GitHubUsers.Any(u => u.Role == "admin"))
             throw new InvalidOperationException("Authentication requires at least one explicitly configured administrator.");
         if (options.GitHubUsers.Length > 0 && (string.IsNullOrWhiteSpace(options.GitHubClientId) || string.IsNullOrWhiteSpace(options.GitHubClientSecretFile)))
             throw new InvalidOperationException("GitHub sign-in requires Access.GitHubClientId and Access.GitHubClientSecretFile.");
     }
     internal static bool ValidUsername(string? name) => name is not null && Regex.IsMatch(name, "^[a-zA-Z0-9_.-]{3,64}$");
-    internal static bool ValidRole(string? role) => role is "viewer" or "admin";
+    internal static bool ValidRole(string? role) => role is "viewer" or "operator" or "admin";
     private static bool ValidHash(string? hash)
     {
         if (string.IsNullOrWhiteSpace(hash) || hash.Length > 2048) return false;

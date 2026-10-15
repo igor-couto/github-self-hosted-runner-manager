@@ -17,12 +17,14 @@ using RunnerRoom.Features.Runners;
 namespace RunnerRoom.Features.Access;
 
 internal sealed class AdminAccess { }
+internal sealed class OperatorAccess { }
 
 internal static class AccessSetup
 {
     internal static string StateDirectory(RunnerOptions options) => options.Monitoring.StateDirectory ?? Environment.GetEnvironmentVariable("STATE_DIRECTORY") ??
         (OperatingSystem.IsLinux() ? "/var/lib/runner-room" : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RunnerRoom"));
     internal static bool IsAdmin(HttpContext context, RunnerOptions options) => !options.Access.Enabled || context.User.IsInRole("admin");
+    internal static bool IsOperator(HttpContext context, RunnerOptions options) => IsAdmin(context, options) || context.User.IsInRole("operator");
     internal static void Configure(WebApplicationBuilder builder, RunnerOptions options)
     {
         var access = options.Access;
@@ -45,7 +47,6 @@ internal static class AccessSetup
             o.AddPolicy("login", context => RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
                 _ => new() { PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
         });
-        if (!access.Enabled) return;
         builder.Services.Configure<ForwardedHeadersOptions>(o =>
         {
             o.ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor;
@@ -59,6 +60,7 @@ internal static class AccessSetup
             // With no proxy configured, do not enable forwarding at all (an empty allowlist trusts everyone).
             if (access.TrustedProxies.Length == 0) o.ForwardedHeaders = ForwardedHeaders.None;
         });
+        if (!access.Enabled) return;
         var keys = Path.Combine(StateDirectory(options), "session-keys");
         if (OperatingSystem.IsLinux())
         {
@@ -129,9 +131,9 @@ internal static class AccessSetup
     }
     internal static void Use(WebApplication app, RunnerOptions options)
     {
+        app.UseForwardedHeaders();
         if (options.Access.Enabled)
         {
-            app.UseForwardedHeaders();
             app.Use(async (context, next) =>
             {
                 if (context.Request.Path == "/healthz") { await next(); return; }
@@ -148,7 +150,7 @@ internal static class AccessSetup
         {
             if (!options.Access.Enabled) { await next(); return; }
             var path = context.Request.Path.Value is { Length: > 1 } value ? new PathString(value.TrimEnd('/')) : context.Request.Path;
-            var publicApi = path == "/api/access/session" || path == "/api/access/login";
+            var publicApi = path == "/api/access/session" || path == "/api/access/login" || path == "/api/setup/status";
             if (!publicApi && path.StartsWithSegments("/api") && context.User.Identity?.IsAuthenticated != true)
             { context.Response.StatusCode = 401; return; }
             if ((path == "/" || path == "/index.html") && context.User.Identity?.IsAuthenticated != true)
@@ -159,7 +161,8 @@ internal static class AccessSetup
                 catch (AntiforgeryValidationException) { context.Response.StatusCode = 403; return; }
             }
             var admin = context.GetEndpoint()?.Metadata.GetMetadata<AdminAccess>() is not null;
-            if (admin && !context.User.IsInRole("admin"))
+            var operate = context.GetEndpoint()?.Metadata.GetMetadata<OperatorAccess>() is not null;
+            if (admin && !IsAdmin(context, options) || operate && !IsOperator(context, options))
             {
                 context.RequestServices.GetRequiredService<AccessAudit>().Add(context, "access_denied");
                 context.Response.StatusCode = 403; return;
@@ -174,7 +177,7 @@ internal static class AccessSetup
         {
             enabled = options.Access.Enabled, authenticated = context.User.Identity?.IsAuthenticated == true,
             name = context.User.Identity?.Name, role = !options.Access.Enabled ? "admin" : context.User.FindFirstValue(ClaimTypes.Role),
-            canAdmin = IsAdmin(context, options), localLogin = options.Access.Enabled && options.Access.LocalUsers.Length > 0,
+            canAdmin = IsAdmin(context, options), canOperate = IsOperator(context, options), localLogin = options.Access.Enabled && options.Access.LocalUsers.Length > 0,
             githubLogin = options.Access.Enabled && options.Access.GitHubUsers.Length > 0,
             csrfToken = options.Access.Enabled ? csrf.GetAndStoreTokens(context).RequestToken : null
         }));

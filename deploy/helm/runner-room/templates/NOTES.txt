@@ -1,0 +1,12 @@
+Runner Room is installed in {{ .Release.Namespace }}.
+{{ if .Values.demo }}This release displays sample data. Use values-linux.example.yaml to monitor a Linux runner node.{{ end }}
+
+Open a local connection:
+  kubectl -n {{ .Release.Namespace }} port-forward service/{{ include "runner-room.fullname" . }} 8080:{{ .Values.service.port }}
+Then visit http://127.0.0.1:8080.
+
+One dashboard monitors one host; replicas stay at one to protect persistent state.
+Runner management is disabled in this deployment. Host runner mounts are read-only.
+{{ if .Values.persistence.retain }}The chart-created state PVC is retained on uninstall.{{ end }}
+{{ if .Values.existingSettingsSecret }}After changing the settings Secret, restart the deployment to load it.{{ end }}
+See docs/deployment.md in the repository for credentials, upgrades and backups.

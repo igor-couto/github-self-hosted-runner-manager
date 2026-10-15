@@ -37,6 +37,15 @@
   function render() {
     view("content").hidden = !data.enabled;
     if (!data.enabled) return;
+    const canAdmin = window.dashboardAccess.canAdmin;
+    for (const id of ["new", "import-open", "version", "editor", "import"]) view(id).hidden = !canAdmin;
+    view("pools").closest("details").hidden = !canAdmin;
+    view("group-form").closest("details").hidden = !canAdmin;
+    for (const option of field("action").options) {
+      const permitted = canAdmin || ["start", "stop", "restart", "drain"].includes(option.value);
+      option.hidden = !permitted; option.disabled = !permitted;
+    }
+    if (field("action").selectedOptions[0]?.disabled) field("action").value = "start";
     view("summary").replaceChildren(...[
       ["MANAGED RUNNERS", data.runners.length, "Registered or imported on this server"],
       ["RUNNING", data.runners.filter(r => r.state === "running").length, "Local lifecycle state"],
@@ -54,9 +63,9 @@
       const state = element("div", ""); state.append(element("span", "management-state " + r.state, r.state.replaceAll("_", " ")));
       if (r.error) state.append(element("p", "management-error", r.error));
       if (r.nextRetry) state.append(element("small", "detail-hint", "Retry: " + dateTime(r.nextRetry)));
-      return [checkbox, name, state, r.settings.pool, (r.version || "Unknown") + (data.latest && r.version && r.version !== data.latest.version ? " · check update" : ""), r.retries + " / " + r.settings.retryLimit, button("Settings", () => edit(r))];
+      return [checkbox, name, state, r.settings.pool, (r.version || "Unknown") + (data.latest && r.version && r.version !== data.latest.version ? " · check update" : ""), r.retries + " / " + r.settings.retryLimit, canAdmin ? button("Settings", () => edit(r)) : "Admin only"];
     });
-    view("runners").replaceChildren(rows.length ? monitorTable(["Select", "Runner", "Lifecycle", "Pool", "Version", "Retries", "Settings"], rows) : element("p", "detail-hint", "No managed runners yet. Create a runner or import an existing installation."));
+    view("runners").replaceChildren(rows.length ? monitorTable(["Select", "Runner", "Lifecycle", "Pool", "Version", "Retries", "Settings"], rows) : element("p", "detail-hint", canAdmin ? "No managed runners yet. Create a runner or import an existing installation." : "No managed runners yet. Ask an administrator to add an installation."));
     updateSelection();
     view("pools").replaceChildren(...data.pools.map(p => {
       const card = element("div", "management-pool"); const label = element("label", "", p.name + " · " + data.runners.filter(r => r.settings.pool === p.name).length + " runners");
@@ -69,19 +78,20 @@
       return [link, w.attempt, w.status, w.conclusion || "Pending", dateTime(w.checkedAt)];
     }), "No workflow runs tracked yet."));
     view("operations").replaceChildren(monitorTable(["Requested", "Operation", "State", "Details", "Control"], [...data.operations].reverse().slice(0, 100).map(o => [dateTime(o.createdAt), o.action.replaceAll("_", " "), o.state, o.message || o.target,
-      ["queued", "running"].includes(o.state) ? button("Cancel operation", () => send("cancel", { id: o.id }, "Interrupt this operation? Completed changes will be kept. Running jobs will not be cancelled by this button.")) : "—"]), "No operations requested yet."));
+      canAdmin && ["queued", "running"].includes(o.state) ? button("Cancel operation", () => send("cancel", { id: o.id }, "Interrupt this operation? Completed changes will be kept. Running jobs will not be cancelled by this button.")) : "—"]), "No operations requested yet."));
   }
   function updateSelection() { field("apply").disabled = selected.size === 0; field("select-all").checked = !!data?.runners.length && selected.size === data.runners.length; field("select-all").indeterminate = selected.size > 0 && selected.size < (data?.runners.length || 0); }
   async function refresh(resetMessage = true) {
     if (loading) return; loading = true;
     try {
       const access = await window.accessReady;
-      if (!access.canAdmin) { message("Runner management is available to administrators only."); view("content").hidden = true; return; }
+      if (!access.canOperate) { message("An operator or administrator account is needed to control runners."); view("content").hidden = true; return; }
       const response = await fetch("/api/management/", { cache: "no-store" });
       if (!response.ok) throw new Error("Could not load management state.");
       data = await response.json();
-      if (resetMessage) message(data.warning || (!data.enabled ? "Management is disabled. Enable Access and configure Management on the server to create or control runners." : data.demo ? "Demo mode · Operations are simulated. No runners, files or GitHub resources are changed." : ""));
+      if (resetMessage) message(!data.enabled ? "Runner monitoring is active. Set up management below to create or control runners." : data.warning || (data.demo ? "Demo mode · Operations are simulated. No runners, files or GitHub resources are changed." : !access.canAdmin ? "Operator access · You can control runners and workflow runs. Configuration is managed by an administrator." : ""));
       render();
+      if (!access.canAdmin) return;
       const result = await fetch("/api/management/groups/result", { cache: "no-store" });
       if (result.ok) { const {result: groups} = await result.json(); if (groups?.runner_groups) view("groups").replaceChildren(monitorTable(["ID", "Name", "Visibility", "Public repositories"], groups.runner_groups.map(g => [g.id, g.name, g.visibility, g.allows_public_repositories ? "Allowed" : "Blocked"])), element("p", "detail-hint", "Showing up to 100 groups.")); else if (groups) view("groups").textContent = groups.message || (groups.id ? "Group " + groups.id + " · " + groups.name : "Group action completed."); }
     } catch (error) { message(error.message + " Previously displayed information may be stale."); }

@@ -11,6 +11,8 @@
   <script src="/preferences.js"></script>
   <script src="/theme.js"></script>
   <link rel="stylesheet" href="/app.css">
+  <link rel="stylesheet" href="/github-sync.css">
+  <link rel="stylesheet" href="/setup.css">
   <script src="/access.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
@@ -195,6 +197,43 @@
     <section id="workspace-integration" class="panel" role="tabpanel" aria-labelledby="workspace-tab-integration" hidden>
       <div class="panel-heading"><div><span class="field-label">CONNECTION &amp; PERMISSIONS</span><h2>GitHub &amp; access</h2></div></div>
       <div class="monitor-content">
+          <div id="github-sync" class="github-sync" aria-label="GitHub synchronization">
+            <div class="sync-heading"><div><h3>Bring your workflows together</h3><p class="detail-hint">Follow repositories to see their GitHub workflow runs, jobs and results in one place.</p></div><button id="sync-refresh" type="button">Refresh status</button></div>
+            <p id="sync-message" class="sync-message" role="status" aria-live="polite">Loading GitHub connection…</p>
+            <div id="sync-content" hidden>
+              <p id="sync-demo" class="sync-message" hidden>Sample GitHub data · This demo does not connect to GitHub.</p>
+              <div id="sync-summary" class="monitor-grid"></div>
+              <div id="sync-setup" class="sync-empty" hidden>
+                <h4>Connect this server to GitHub</h4>
+                <p>Ask your dashboard administrator to configure a GitHub token or GitHub App installation on the server. Then choose the repositories to follow here.</p>
+                <details id="sync-setup-admin" class="sync-details" hidden><summary>Connection setup</summary><p>Configure <code>GitHub.TokenFile</code> with the path to a token file readable by the dashboard. Alternatively, configure <code>GitHub.App.AppId</code>, <code>GitHub.App.InstallationId</code> and <code>GitHub.App.PrivateKeyFile</code>. Choose one credential method.</p><p>Set <code>GitHub.Sync.Enabled</code> to <code>true</code> and restart the dashboard. The credential needs access to the repositories you want to follow, with Actions read permission. Workflow scanning also needs Contents read permission. GitHub sign-in and the server connection are separate.</p><p>Keep tokens and private keys on the server; this dashboard never asks you to paste them into a form.</p></details>
+              </div>
+              <div id="sync-following">
+                <div class="sync-heading sync-section-heading"><div><h3>Followed repositories</h3><p class="detail-hint">Only these repositories are synchronized and shared with dashboard users.</p></div><div class="sync-actions"><button id="sync-choose" type="button" hidden>Choose repositories</button><button id="sync-now" type="button" class="primary-button" hidden>Sync now</button><button id="sync-cancel" type="button" hidden>Stop sync</button></div></div>
+                <div id="sync-progress" class="sync-progress" role="status" hidden></div>
+                <div id="sync-repositories"></div>
+                <section id="sync-picker" class="sync-picker" aria-labelledby="sync-picker-title" hidden>
+                  <div class="sync-heading"><h4 id="sync-picker-title">Choose repositories to follow</h4><button id="sync-picker-close" type="button">Close</button></div>
+                  <p class="detail-hint">Your selection is saved on this server. Unfollowing a repository removes its synchronized history from the dashboard.</p>
+                  <div class="sync-controls"><label>Find a repository<input id="sync-repo-search" type="search" placeholder="Owner or repository name" autocomplete="off"></label><button id="sync-discover" type="button">Find accessible repositories</button></div>
+                  <p id="sync-discovery-message" class="detail-hint" role="status"></p>
+                  <div id="sync-choices" class="sync-choices"></div>
+                  <details class="sync-details"><summary>History options</summary><div class="sync-controls"><label>Look back<select id="sync-days"><option value="1">1 day</option><option value="7">7 days</option><option value="30" selected>30 days</option><option value="90">90 days</option></select></label><label>Maximum runs per repository<input id="sync-limit" type="number" min="1" max="100" value="100" required></label></div><p class="detail-hint">Smaller imports finish sooner and use fewer GitHub API requests. Existing history may be trimmed when you reduce these limits.</p></details>
+                  <div class="sync-actions"><button id="sync-save" type="button" class="primary-button">Save selection</button><span id="sync-selection-count" class="detail-hint"></span></div>
+                </section>
+              </div>
+              <section class="sync-runs" aria-labelledby="sync-runs-title">
+                <div class="sync-heading sync-section-heading"><h3 id="sync-runs-title">Workflow runs</h3><span id="sync-run-count" class="detail-hint"></span></div>
+                <div class="sync-controls"><label>Search runs<input id="sync-run-search" type="search" placeholder="Workflow, branch, actor or commit"></label><label>Repository<select id="sync-run-repo"><option value="">All repositories</option></select></label><label>Result<select id="sync-run-result"><option value="">All results</option><option value="active">In progress or queued</option><option value="success">Passed</option><option value="failure">Failed</option><option value="cancelled">Cancelled</option><option value="other">Other</option></select></label></div>
+                <div id="sync-runs-list"></div>
+                <div class="history-pagination"><button id="sync-previous" type="button">Previous</button><span id="sync-page" class="detail-hint"></span><button id="sync-next" type="button">Next</button></div>
+              </section>
+              <details class="sync-details sync-section-heading"><summary>Sync activity &amp; API usage</summary><div id="sync-budget" class="detail-hint"></div><div id="sync-history"></div></details>
+              <section id="sync-run-details" class="sync-picker" aria-labelledby="sync-run-title" tabindex="-1" hidden><div class="sync-heading"><h3 id="sync-run-title">Workflow details</h3><button id="sync-run-close" type="button">Close details</button></div><div id="sync-run-body"></div></section>
+              <section id="sync-workflow-details" class="sync-picker" aria-labelledby="sync-workflow-title" tabindex="-1" hidden><div class="sync-heading"><h3 id="sync-workflow-title">Runner requirements</h3><button id="sync-workflow-close" type="button">Close requirements</button></div><div id="sync-workflow-body"></div></section>
+            </div>
+          </div>
+          <details class="sync-details sync-access"><summary>Dashboard access &amp; runner connections</summary>
         <p id="integration-warning" class="monitor-warning" role="status" hidden></p>
         <div id="integration-summary" class="monitor-grid"></div>
         <p id="integration-permissions" class="detail-hint"></p>
@@ -202,15 +241,20 @@
           <h3 class="monitor-subheading">GitHub runner connections</h3><div id="integration-runners"></div>
           <p class="detail-hint">Runner API access uses the server's read-only GitHub token. GitHub sign-in identifies dashboard users and grants no access unless their numeric GitHub ID is explicitly allowed.</p>
           <h3 class="monitor-subheading">Allowed accounts</h3><div id="integration-users"></div>
-          <p class="detail-hint">Manage accounts and roles in Access settings on the server, then restart. Viewer: monitoring, job summaries and history exports. Admin: also diagnostic logs, manual alert checks, integration details and access audit.</p>
+            <p class="detail-hint">Manage accounts and roles in Access settings on the server, then restart. Viewers can read monitoring and synchronized workflow data. Operators can also refresh GitHub synchronization. Administrators configure repository access, manage runners and inspect the access audit.</p>
           <h3 class="monitor-subheading">Recent access activity</h3><div id="integration-audit"></div>
         </div>
+          </details>
       </div>
     </section>
     <section id="workspace-management" class="panel management-panel" role="tabpanel" aria-labelledby="workspace-tab-management" hidden>
       <div class="panel-heading"><div><span class="field-label">RUNNER LIFECYCLE</span><h2>Runner management</h2></div><button id="management-refresh" class="secondary-button" type="button">Refresh management</button></div>
       <div class="monitor-content">
         <p id="management-message" class="monitor-warning" role="status">Loading management settings…</p>
+        <div id="management-setup" class="setup-callout" hidden>
+          <div><h3 id="setup-callout-title">Set up runner management</h3><p id="setup-callout-hint">Create your dashboard login, connect GitHub and choose which repositories you can manage.</p></div>
+          <button id="setup-open" class="primary-button" type="button">Set up management</button>
+        </div>
         <div id="management-content" hidden>
           <div id="management-summary" class="monitor-grid"></div>
           <div class="management-toolbar"><button id="management-new" class="secondary-button" type="button">+ Create runners</button><button id="management-import-open" class="secondary-button" type="button">Import installation</button><button id="management-version" class="secondary-button" type="button">Check latest version</button><span id="management-latest" class="detail-hint"></span></div>
@@ -301,7 +345,9 @@
   <script src="/alerts.js" defer></script>
   <script src="/workspace.js" defer></script>
   <script src="/integration.js" defer></script>
+    <script src="/github-sync.js" defer></script>
   <script src="/management.js" defer></script>
+  <script src="/setup.js" defer></script>
   <script src="/application-updates.js" defer></script>
   <script src="/dashboard.js" defer></script>
   <script src="/details.js" defer></script>

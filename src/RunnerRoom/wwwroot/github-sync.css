@@ -1,0 +1,56 @@
+.github-sync { min-width:0; }
+.sync-heading { display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap; }
+.sync-heading h3,.sync-heading h4 { margin:0; font-size:15px; }
+.sync-heading h4 { font-size:13px; }
+.sync-heading .detail-hint { margin-bottom:0; }
+.sync-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.sync-message { padding:12px 15px; color:var(--blue-text); background:var(--blue-soft); border-radius:4px; line-height:1.7; font-size:12px; overflow-wrap:anywhere; }
+.sync-message.error { color:var(--warning); background:var(--warning-bg); }
+.sync-empty { padding:24px; margin-top:18px; background:var(--surface-inset); border:1px dashed var(--border); border-radius:5px; }
+.sync-empty h4 { margin:0 0 10px; font-size:15px; }
+.sync-empty p,.sync-details p { color:var(--secondary); line-height:1.8; font-size:12px; }
+.sync-section-heading { margin-top:28px; margin-bottom:16px; }
+.sync-controls { display:flex; flex-wrap:wrap; align-items:end; gap:14px; margin:18px 0; }
+.sync-controls label { display:grid; gap:8px; min-width:0; flex:1 1 180px; color:var(--secondary); font-size:11px; }
+.sync-controls input,.sync-controls select { min-width:0; width:100%; max-width:none; padding:10px; color:var(--text); background:var(--surface-inset); border:1px solid var(--border); border-radius:4px; font-size:12px; }
+.sync-repository { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 0; border-bottom:1px solid var(--divider); }
+.sync-repository > div { min-width:0; }
+.sync-repository strong,.sync-run-name { display:block; color:var(--text); font-size:13px; overflow-wrap:anywhere; }
+.sync-repository p { margin:7px 0 0; }
+.sync-repository .sync-actions { flex-shrink:0; }
+.sync-repository-error { color:var(--warning); font-size:12px; line-height:1.7; overflow-wrap:anywhere; }
+.sync-picker { margin:20px 0; padding:22px; background:var(--surface-inset); border:1px solid var(--blue); border-radius:5px; }
+.sync-details summary { cursor:pointer; padding:14px 0; font-size:12px; font-weight:600; color:var(--blue-text); }
+.sync-details summary:focus-visible { outline:2px solid var(--blue); outline-offset:3px; }
+.sync-access { margin-top:28px; border-top:1px solid var(--border); }
+.sync-choices { max-height:340px; overflow:auto; margin:14px 0; }
+.sync-choice { display:flex; align-items:center; gap:12px; padding:12px 8px; border-bottom:1px solid var(--divider); cursor:pointer; font-size:12px; overflow-wrap:anywhere; }
+.sync-choice input { accent-color:var(--blue); flex-shrink:0; width:17px; height:17px; }
+.sync-choice span { min-width:0; }
+.sync-choice small { color:var(--muted); margin-left:8px; }
+.sync-progress { margin-top:15px; padding:14px; border-left:3px solid var(--blue); background:var(--blue-soft); font-size:12px; line-height:1.7; }
+.sync-status { display:inline-flex; padding:5px 8px; border-radius:4px; font-size:10px; color:var(--secondary); background:var(--off-bg); white-space:nowrap; }
+.sync-status.success { color:var(--on); background:var(--on-bg); }
+.sync-status.failure,.sync-status.timed_out,.sync-status.action_required { color:var(--warning); background:var(--warning-bg); }
+.sync-status.in_progress,.sync-status.queued,.sync-status.waiting { color:var(--blue-text); background:var(--blue-soft); }
+.sync-runs .monitor-table-wrap { margin-top:18px; }
+.sync-runs td .detail-hint { display:block; margin-top:6px; }
+.sync-job { margin:18px 0; border-top:1px solid var(--divider); padding-top:16px; }
+.sync-job h4 { margin:0 0 12px; overflow-wrap:anywhere; }
+.sync-job summary { color:var(--blue-text); font-size:12px; cursor:pointer; padding:12px 0; }
+#sync-budget { margin:4px 0 16px; line-height:1.8; }
+#sync-history .monitor-table-wrap { max-height:300px; overflow:auto; }
+#sync-run-details:focus-visible,#sync-workflow-details:focus-visible { outline:2px solid var(--blue); outline-offset:3px; }
+@media(max-width:650px) {
+  #sync-summary { grid-template-columns:1fr; }
+  #sync-runs-list table,#sync-runs-list tbody,#sync-runs-list tr,#sync-runs-list td { display:block; width:100%; min-width:0; }
+  #sync-runs-list thead { display:none; }
+  #sync-runs-list tr { padding:12px 0; border-bottom:1px solid var(--border); }
+  #sync-runs-list td { border:0; padding:6px 10px; }
+  .sync-repository { align-items:start; flex-direction:column; }
+  .sync-picker { padding:16px; }
+  .sync-controls { gap:10px; }
+  .sync-controls label { flex-basis:100%; }
+  .sync-heading > .sync-actions { width:100%; }
+  .sync-empty { padding:18px; }
+}

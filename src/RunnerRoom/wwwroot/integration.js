@@ -6,7 +6,7 @@ async function refreshIntegration() {
   try{
     const session=await window.accessReady;
     $("integration-summary").replaceChildren(metricCard("Dashboard access",session.enabled?"Sign-in required":"Open LAN access",session.enabled?"Your role: "+session.role:"Anyone who can reach this dashboard has administrator access."));
-    $("integration-permissions").textContent=session.canAdmin?"Administrator access: diagnostics, manual checks and integration settings are available.":"Viewer access: you can read runner status, metrics and job history. Diagnostic logs and administrative actions require an admin.";
+    $("integration-permissions").textContent=session.canAdmin?"Administrator access: configure repository access, manage runners and review the access audit.":session.canOperate?"Operator access: view monitoring and workflow history, and refresh GitHub synchronization.":"Viewer access: read runner status, metrics and synchronized workflow history. Ask an administrator to change repository access.";
     $("integration-admin").hidden=!session.canAdmin;
     if(!session.canAdmin)return;
     const [response,auditResponse]=await Promise.all([fetch("/api/integration",{cache:"no-store"}),fetch("/api/access/audit",{cache:"no-store"})]);

@@ -8,6 +8,7 @@ using RunnerRoom.Features.Management;
 using RunnerRoom.Features.Monitoring;
 using RunnerRoom.Features.Quotas;
 using RunnerRoom.Features.Runners;
+using RunnerRoom.Features.Setup;
 using RunnerRoom.Interfaces.CommandLine;
 
 if (args.Length > 0 && args[0] is "cli" or "tui")
@@ -33,15 +34,27 @@ if (args is ["--check-runtime"])
     return;
 }
 
-var builder = WebApplication.CreateBuilder(args);
+var serverArgs = args.Where(arg => arg != "--setup-code").ToArray();
+var builder = WebApplication.CreateBuilder(serverArgs);
 var settingsFile = builder.Configuration["SettingsFile"];
 builder.Configuration.AddJsonFile(settingsFile ?? (OperatingSystem.IsLinux() ? "/etc/runner-room/settings.json" : "settings.json"),
-    optional: settingsFile is null, reloadOnChange: false).AddEnvironmentVariables().AddCommandLine(args);
-var options = builder.Configuration.Get<RunnerOptions>() ?? new();
+    optional: settingsFile is null, reloadOnChange: false).AddEnvironmentVariables().AddCommandLine(serverArgs);
+var options = SetupConfigurationLoader.Load(builder.Configuration, serverArgs);
+if (args.Contains("--setup-code", StringComparer.Ordinal))
+{
+    try { Console.WriteLine(SetupService.CreateCode(options)); }
+    catch (Exception error) when (error is SetupException or IOException or UnauthorizedAccessException)
+    { Console.Error.WriteLine(error is SetupException ? error.Message : "Could not create the setup code. Run this command as the Runner Room service account with access to its state directory."); Environment.ExitCode = 1; }
+    return;
+}
 builder.Services.AddSingleton(options);
+builder.Services.AddSingleton(s => new SetupService(options,
+    new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(30) },
+    restriction: SetupRestrictions.Find(builder.Configuration, options.Access.Enabled)));
 AccessSetup.Configure(builder, options);
-builder.Services.AddSingleton(new GitHubRunnerClient(new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
-    { Timeout = TimeSpan.FromSeconds(5) }, options.GitHub));
+GitHubSyncSetup.Configure(builder, options);
+builder.Services.AddSingleton(s => new GitHubRunnerClient(new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
+    { Timeout = TimeSpan.FromSeconds(5) }, options.GitHub, credentials: s.GetRequiredService<GitHubCredentialProvider>()));
 builder.Services.AddSingleton<RunnerMonitor>();
 ManagementSetup.Configure(builder, options);
 builder.Services.AddSingleton<DetailedSystemMonitor>();
@@ -86,7 +99,9 @@ app.MapPost("/api/alerts/check", (HttpRequest request, AlertService alerts) =>
     if (queued) request.HttpContext.RequestServices.GetRequiredService<AccessAudit>().Add(request.HttpContext, "alert_check_requested");
     return queued ? Results.Accepted(value: new { message = "Check queued." }) :
         Results.Json(new { message = "Checks are disabled, already running or were just requested." }, statusCode: 429);
-}).WithMetadata(new AdminAccess());
+}).WithMetadata(new OperatorAccess());
 AccessSetup.Map(app, options);
+GitHubSyncSetup.Map(app, options);
 ManagementSetup.Map(app);
+SetupEndpoints.Map(app, options);
 app.Run();

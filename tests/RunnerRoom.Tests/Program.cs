@@ -1,6 +1,8 @@
 using System.Globalization;
 
 using RunnerRoom.Features.Monitoring;
+using RunnerRoom.Tests.Features.GitHub;
+using RunnerRoom.Tests.Features.Setup;
 using RunnerRoom.Tests.Features.Access;
 using RunnerRoom.Tests.Features.Alerts;
 using RunnerRoom.Tests.Features.Analytics;
@@ -73,4 +75,9 @@ AccessChecks.Run(Check);
 await ManagementChecks.Run(Check);
 await InterfaceChecks.Run(Check);
 await UpdateChecks.Run(Check);
+await SyncChecks.Run(Check);
+await CredentialChecks.Run(Check);
+WorkflowChecks.Run(Check);
+await SetupChecks.Run(Check);
+SetupConfigurationChecks.Run(Check);
 Console.WriteLine($"PASS: {checks} system, inventory, job, log, monitoring, analytics, alert, access and management checks.");

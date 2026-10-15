@@ -7,7 +7,7 @@ using RunnerRoom.Features.Runners;
 namespace RunnerRoom.Features.GitHub;
 
 // Only GitHub.com's fixed API origin receives the optional token, never a URL from runner metadata.
-public sealed class GitHubRunnerClient(HttpClient http, GitHubOptions options, TimeProvider? timeProvider = null)
+public sealed class GitHubRunnerClient(HttpClient http, GitHubOptions options, TimeProvider? timeProvider = null, GitHubCredentialProvider? credentials = null)
 {
     private readonly TimeProvider clock = timeProvider ?? TimeProvider.System;
     private readonly Dictionary<string, (DateTimeOffset Expires, GitHubRunnerInfo Info)> cache = new();
@@ -24,7 +24,10 @@ public sealed class GitHubRunnerClient(HttpClient http, GitHubOptions options, T
 
     internal async Task<RunnerInfo[]> EnrichAsync(RunnerInfo[] runners)
     {
-        var token = options.Token;
+        string? token;
+        try { token = credentials is null ? options.Token : await credentials.GetTokenAsync(); }
+        catch (Exception ex) when (ex is GitHubCredentialException or OperationCanceledException)
+        { return runners.Select(r => r with { GitHub = new("unknown", Message: ex is GitHubCredentialException ? ex.Message : "GitHub authentication timed out.") }).ToArray(); }
         if (string.IsNullOrWhiteSpace(token) && !string.IsNullOrWhiteSpace(options.TokenFile))
             token = LocalRunnerReader.ReadSmall(options.TokenFile, 8192)?.Trim();
         if (string.IsNullOrWhiteSpace(token))

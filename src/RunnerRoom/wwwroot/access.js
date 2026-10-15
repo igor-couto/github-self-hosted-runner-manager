@@ -1,5 +1,5 @@
 "use strict";
-window.dashboardAccess = {canAdmin:false};
+window.dashboardAccess = {canAdmin:false,canOperate:false};
 (() => {
   const nativeFetch = window.fetch.bind(window);
   window.accessReady = nativeFetch("/api/access/session", {cache:"no-store"}).then(async response => {
