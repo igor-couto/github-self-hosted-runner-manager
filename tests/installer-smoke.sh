@@ -51,6 +51,17 @@ test ! -e /opt/runner-room/current
 cp /fixture/good.sha256 /fixture/runner-room-linux-x64.tar.gz.sha256
 
 install_app
+manifest=/opt/runner-room/current/.runner-room-manifest
+test "$(stat -c %a "$manifest")" = 600
+test "$(stat -c %U "$manifest")" = root
+IFS= read -r -d '' manifest_header <"$manifest"
+test "$manifest_header" = runner-room-release-v1
+grep -zFxq 'fRunnerRoom' "$manifest"
+grep -zFxq 'fwwwroot/index.html' "$manifest"
+grep -zFxq 'dwwwroot' "$manifest"
+if grep -zFxq 'f.runner-room-manifest' "$manifest"; then
+    echo 'Release manifest includes itself'; exit 1
+fi
 systemd-analyze verify /etc/systemd/system/runner-room.service
 curl -fsS http://127.0.0.1:8080/api/runners | jq -e '
     .runners | length == 7 and

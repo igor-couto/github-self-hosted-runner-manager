@@ -164,11 +164,12 @@ HELP
     # release directories: files subsequently added by users remain untouched.
     find "$release_dir" -type d -exec chmod go-w {} +
     find "$release_dir" -type f -exec chmod go-w {} +
+    # Build outside the scanned tree, then install the completed ownership record.
     {
         printf 'runner-room-release-v1\0'
         find "$release_dir" -mindepth 1 -depth ! -path "$release_dir/.runner-room-manifest" -printf '%y%P\0'
-    } >"$release_dir/.runner-room-manifest"
-    chmod 600 "$release_dir/.runner-room-manifest"
+    } >"$work_dir/release-manifest"
+    install -m 600 -- "$work_dir/release-manifest" "$release_dir/.runner-room-manifest"
     chmod 755 "$release_dir/RunnerRoom"
     runuser -u "$service_user" -- "$release_dir/RunnerRoom" --check-runtime || die 'The bundled runtime cannot start. Use a supported glibc Linux distribution with its standard native libraries.'
     [[ ! -f $config ]] || cp -- "$config" "$work_dir/old.env"
