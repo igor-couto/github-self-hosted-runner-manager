@@ -38,11 +38,15 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const runners = '/srv/' + project;
   const fixtureVolume = project+'-runners';
   const fixtureContainer = project+'-listener';
+  const namespaceContainer = project+'-processes';
   fs.writeFileSync(path.join(work,'settings.json'), JSON.stringify({Access:{Enabled:false},Alerts:{Enabled:false}}));
-  // Replace only the host fixture/config bindings and published port. All service
-  // identity, health, security, host PID and state initialization settings stay real.
+  // Share a disposable PID namespace instead of the CI host's processes. Its own
+  // GitHub runner may use another UID, correctly making process status unknown.
+  // Keep the namespace alive when the listener stops so we can check offline status.
+  // Service identity, health, security and state initialization settings stay real.
   fs.writeFileSync(path.join(work,'override.yaml'), `services:
   dashboard:
+    pid: "container:${namespaceContainer}"
     ports: !override ["127.0.0.1::8080"]
     volumes: !override
       - type: volume
@@ -62,11 +66,16 @@ volumes:
   const env = {...process.env,RUNNER_UID:'1001',RUNNER_GID:'1001',RUNNERS_ROOT:runners,RUNNER_ROOM_IMAGE:'runner-room:deployment-check'};
   const composeArgs = ['compose','-p',project,'-f','deploy/compose/compose.yaml','-f',path.join(work,'override.yaml')];
   const compose = args => docker([...composeArgs,...args], {env});
+  // The production deployment must still monitor host processes, not just itself.
+  const production = JSON.parse(docker(['compose','-f','deploy/compose/compose.yaml','config','--format','json'], {env}));
+  assert.equal(production.services.dashboard.pid,'host');
   try {
     docker(['volume','create',fixtureVolume]);
     docker(['run','--rm','--user','0','-v',fixtureVolume+':'+runners,'--entrypoint','sh','runner-room:deployment-fixture','-ec',
       `mkdir -p ${runners}/test/bin; cp /checks/runner-stub ${runners}/test/bin/Runner.Listener; printf '{"agentName":"compose-fixture"}' > ${runners}/test/.runner; chown -R 1001:1001 ${runners}`]);
-    docker(['run','-d','--name',fixtureContainer,'--pid=host','--user','1001:1001','-v',fixtureVolume+':'+runners,
+    docker(['run','-d','--name',namespaceContainer,'--user','1001:1001',
+      '--entrypoint','sleep','runner-room:deployment-fixture','infinity']);
+    docker(['run','-d','--name',fixtureContainer,'--pid=container:'+namespaceContainer,'--user','1001:1001','-v',fixtureVolume+':'+runners,
       '--entrypoint',runners+'/test/bin/Runner.Listener','runner-room:deployment-fixture','run']);
     compose(['config','--quiet']);
     compose(['up','-d','--no-build','--wait','--wait-timeout','90']);
@@ -77,7 +86,8 @@ volumes:
     assert.equal(inventory.runners.length,1);
     assert.equal(inventory.runners[0].name,'compose-fixture');
     assert.equal(inventory.runners[0].processStatus,'running');
-    assert.equal(inventory.runners[0].status,'idle');
+    assert.equal(inventory.runners[0].status,'idle',
+      `Expected an idle fixture; process=${inventory.runners[0].processStatus}, warning=${inventory.warning}`);
     assert.match(await (await fetch(base)).text(),/Runner Room/);
     assert.throws(() => compose(['exec','-T','dashboard','touch',runners+'/should-not-write']));
     compose(['exec','-T','dashboard','sh','-ec','test -s /var/lib/runner-room/monitoring.json; echo preserved > /var/lib/runner-room/deployment-check']);
@@ -86,11 +96,13 @@ volumes:
     docker(['stop',fixtureContainer]);
     await sleep(4000);
     const after = await (await fetch('http://'+compose(['port','dashboard','8080']).trim()+'/api/runners')).json();
-    assert.equal(after.runners[0].status,'offline');
-    console.log('PASS: Compose healthy startup, host runner idle/offline detection, static assets, read-only runner mount and persistent state after recreation.');
+    assert.equal(after.runners[0].status,'offline',
+      `Expected an offline fixture; process=${after.runners[0].processStatus}, warning=${after.warning}`);
+    console.log('PASS: Compose host PID configuration, healthy startup, shared-process runner idle/offline detection, static assets, read-only runner mount and persistent state after recreation.');
   } finally {
     try { compose(['down','--volumes','--remove-orphans']); } catch {}
     try { docker(['rm','-f',fixtureContainer]); } catch {}
+    try { docker(['rm','-f',namespaceContainer]); } catch {}
     try { docker(['volume','rm',fixtureVolume]); } catch {}
   }
-})().catch(error => { console.error(error.message, error.stdout?.toString() || '', error.stderr?.toString() || ''); process.exitCode=1; });
+})().catch(error => { console.error(error.stack || error.message, error.stdout?.toString() || '', error.stderr?.toString() || ''); process.exitCode=1; });
