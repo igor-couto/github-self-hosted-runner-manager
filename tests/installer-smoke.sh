@@ -8,6 +8,8 @@ cat >/usr/local/bin/curl <<'SH'
 #!/usr/bin/env bash
 for arg in "$@"; do
     if [[ $arg == https://github.com/* ]]; then exec /usr/local/bin/release-curl "$@"; fi
+    if [[ $arg == http://127.0.0.1:*/healthz && -f /tmp/unhealthy-version && -f /opt/runner-room/current/.runner-room-version ]] &&
+        [[ $(cat /tmp/unhealthy-version) == "$(cat /opt/runner-room/current/.runner-room-version)" ]]; then exit 22; fi
 done
 exec /usr/bin/curl "$@"
 SH
@@ -203,11 +205,17 @@ cp /etc/runner-room/settings.json /tmp/original-settings.json
 bash /fixture/install.sh --runners "$runners" --port 8082 --version v0.1.1
 cmp /tmp/original-settings.json /etc/runner-room/settings.json
 curl -fsS http://127.0.0.1:8082/api/alerts | jq -e --arg id "$alert_id" '.history | any(.[]; .id == $id and .state == "resolved")'
+source /fixture/updater-smoke.sh
 source /fixture/access-smoke.sh
 cp /etc/runner-room/settings.json /tmp/pre-uninstall-settings.json
 bash /fixture/uninstall.sh --yes
 test ! -e /opt/runner-room/current
 test ! -e /etc/systemd/system/runner-room.service
+test ! -e /etc/systemd/system/runner-room-update.service
+test ! -e /etc/systemd/system/runner-room-update.path
+test ! -e /var/lib/runner-room-updater
+test ! -e /opt/runner-room/installer.sh
+test ! -e /opt/runner-room/update-service.sh
 test ! -e /tmp/runner-room.pid
 test -f "$runners/build-one/.runner"
 test -s /var/lib/runner-room/analytics.json

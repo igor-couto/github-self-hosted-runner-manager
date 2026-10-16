@@ -512,6 +512,21 @@ a { color:var(--blue-text); }
 #preferences-dialog { width:min(640px,calc(100% - 24px)); max-height:90vh; padding:0; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:8px; }
 #preferences-dialog::backdrop { background:#0009; }
 .preferences-body,.detail-page-body,.quota-content { padding:24px; }
+.preferences-updates { border:1px solid var(--border); border-radius:6px; padding:18px; margin-bottom:24px; background:var(--surface-inset); }
+.preferences-updates-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.preferences-updates-heading h3 { margin:0; font-size:15px; }
+.preferences-updates-heading .app-update-status { margin:0; }
+.preferences-update-versions { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:20px 0 16px; }
+.preferences-update-versions > div { display:block; }
+.preferences-update-versions dt { color:var(--muted); font-size:11px; margin-bottom:6px; }
+.preferences-update-versions dd { margin:0; font-size:17px; font-weight:600; text-align:left; color:var(--text); overflow-wrap:anywhere; }
+.preferences-update-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:16px; }
+.preferences-update-actions button { max-width:100%; }
+.preferences-updates .detail-hint { overflow-wrap:anywhere; }
+.preferences-updates [aria-live] { margin-bottom:0; }
+.preferences-updates[data-state="failed"] #preferences-update-status,.preferences-updates[data-state="rolled_back"] #preferences-update-status { color:var(--warning,#f4bd59); }
+.preferences-updates[data-updating="true"] #preferences-update-status::before { content:""; display:inline-block; width:6px; height:6px; margin-right:7px; border-radius:50%; background:var(--blue); }
+@media(max-width:480px) { .preferences-updates { padding:14px; } .preferences-update-versions { gap:10px; } .preferences-update-actions { align-items:stretch; flex-direction:column; } }
 .preference-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin:24px 0; }
 .preference-grid label { display:grid; gap:8px; font-size:12px; color:var(--secondary); }
 .preference-grid select { width:100%; padding:10px; background:var(--surface-inset); color:var(--text); border:1px solid var(--border); border-radius:4px; }

@@ -5,8 +5,10 @@ set -Eeuo pipefail
 
 main() {
     local prefix=/opt/runner-room unit=/etc/systemd/system/runner-room.service
+    local updater=/var/lib/runner-room-updater updater_unit
     local yes=0 directory manifest entry relative target answer current='' preserved=0
     local -a files=() directories=() manifests=()
+    local -a updater_units=() updater_files=()
     die() { printf 'Error: %s\n' "$*" >&2; exit 1; }
     usage() {
         cat <<'HELP'
@@ -50,13 +52,49 @@ HELP
         [[ $(stat -c %u -- "$path") == 0 ]] || die "Expected a root-owned path: $path"
         (( (8#$(stat -c %a -- "$path") & 8#022) == 0 )) || die "Path is writable by other users: $path"
     }
-    for directory in /opt "$prefix" "$prefix/releases" /etc /etc/systemd /etc/systemd/system; do
+    for directory in /opt "$prefix" "$prefix/releases" /etc /etc/systemd /etc/systemd/system /var /var/lib "$updater"; do
         [[ ! -L $directory ]] || die "Refusing symbolic link: $directory"
         if [[ -e $directory ]]; then
             [[ -d $directory ]] || die "Expected a directory: $directory"
             trusted "$directory"
         fi
     done
+    # Remove only the bridge installed with this dashboard; do not follow links
+    # or adopt unrelated services/scripts, even when their names happen to match.
+    for target in "$prefix/installer.sh" "$prefix/update-service.sh"; do
+        if [[ -e $target || -L $target ]]; then
+            [[ -f $target ]] || die 'An updater helper is not a regular file.'
+            trusted "$target"
+            grep -qx '# Managed by the Runner Room installer' "$target" || die 'An updater helper is not installer-managed.'
+            updater_files+=("$target")
+        fi
+    done
+    for updater_unit in runner-room-update.path runner-room-update.service; do
+        target=/etc/systemd/system/$updater_unit
+        if [[ -e $target || -L $target ]]; then
+            [[ -f $target ]] || die 'An updater unit is not a regular file.'
+            trusted "$target"
+            grep -qx '# Managed by the Runner Room installer' "$target" || die 'An updater unit is not installer-managed.'
+            [[ $(systemctl show "$updater_unit" --property=FragmentPath --value) == "$target" ]] || die 'A loaded updater unit does not match this installation.'
+            updater_units+=("$updater_unit")
+        fi
+    done
+    if [[ -e $updater/capability.json || -L $updater/capability.json ]]; then
+        trusted "$updater/capability.json"
+        grep -qx '{"protocol":1}' "$updater/capability.json" || die 'The updater capability is not recognized.'
+        updater_files+=("$updater/capability.json")
+        if [[ -e $updater/status.json || -L $updater/status.json ]]; then
+            [[ -f $updater/status.json ]] || die 'The updater status is not a regular file.'
+            trusted "$updater/status.json"
+            updater_files+=("$updater/status.json")
+        fi
+        if [[ -e $updater/processing || -L $updater/processing ]]; then
+            [[ -f $updater/processing ]] || die 'The updater processing marker is not a regular file.'
+            trusted "$updater/processing"
+            updater_files+=("$updater/processing")
+        fi
+        [[ ! -L $updater/inbox && ( ! -e $updater/inbox || -d $updater/inbox ) ]] || die 'The updater inbox is not a real directory.'
+    fi
     if [[ -e $unit || -L $unit ]]; then
         [[ -f $unit ]] || die 'runner-room.service is not a regular file.'
         trusted "$unit"
@@ -119,7 +157,7 @@ HELP
         manifests+=("$manifest")
         directories+=("$directory")
     done
-    if [[ ! -e $unit && ${#manifests[@]} == 0 ]]; then
+    if [[ ! -e $unit && ${#manifests[@]} == 0 && ${#updater_files[@]} == 0 && ${#updater_units[@]} == 0 ]]; then
         printf 'Runner Room is already uninstalled. Settings, history and untracked files have been preserved.\n'
         return
     fi
@@ -130,6 +168,10 @@ HELP
         read -r -p 'Uninstall Runner Room? Type yes to continue: ' answer
         [[ $answer == yes ]] || { printf 'Uninstall cancelled.\n'; return; }
     fi
+    for updater_unit in "${updater_units[@]}"; do
+        systemctl stop "$updater_unit" || die 'Could not stop the update helper; application files were kept.'
+        systemctl disable "$updater_unit" || die 'Could not disable the update helper; application files were kept.'
+    done
     if [[ -f $unit ]]; then
         systemctl stop runner-room.service || die 'Could not stop Runner Room; application files were kept.'
         # A service that failed to stop must retain its files.
@@ -140,6 +182,18 @@ HELP
         rm -- "$unit"
         systemctl daemon-reload
     fi
+    for updater_unit in "${updater_units[@]}"; do rm -- "/etc/systemd/system/$updater_unit"; done
+    for target in "${updater_files[@]}"; do rm -- "$target"; done
+    if ((${#updater_units[@]})); then systemctl daemon-reload; fi
+    # The inbox belongs to the app account. Remove only the known request file;
+    # keep unknown user files/directories and never recurse through this path.
+    if [[ -d $updater/inbox && ! -L $updater/inbox ]]; then
+        for target in "$updater/inbox/request" "$updater/inbox/request.lock"; do
+            if [[ -f $target || -L $target ]]; then rm -f -- "$target"; fi
+        done
+        rmdir -- "$updater/inbox" 2>/dev/null || true
+    fi
+    rmdir -- "$updater" 2>/dev/null || true
     [[ ! -L $prefix/current ]] || rm -- "$prefix/current"
     for target in "${files[@]}"; do rm -- "$target"; done
     for manifest in "${manifests[@]}"; do rm -- "$manifest"; done

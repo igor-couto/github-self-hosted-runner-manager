@@ -2,6 +2,24 @@
 # Test-only service supervisor. Runs the real binary as an unprivileged account;
 # systemd unit syntax is separately verified with systemd-analyze.
 set -euo pipefail
+if [[ $* == *runner-room-update.* ]]; then
+    update_unit=${*: -1}
+    # show places --property/--value after the unit name.
+    if [[ $1 == show ]]; then
+        printf '/etc/systemd/system/%s\n' "$2"
+        exit 0
+    fi
+    case "$1" in
+        enable) touch "/tmp/$update_unit.enabled"; if [[ $* == *--now* ]]; then touch "/tmp/$update_unit.active"; fi ;;
+        disable) rm -f "/tmp/$update_unit.enabled" ;;
+        is-enabled) test -f "/tmp/$update_unit.enabled" ;;
+        start) touch "/tmp/$update_unit.active" ;;
+        stop) rm -f "/tmp/$update_unit.active" ;;
+        is-active) test -f "/tmp/$update_unit.active" ;;
+        *) exit 2 ;;
+    esac
+    exit
+fi
 stop_app() {
     if [[ -f /tmp/runner-room.pid ]]; then
         kill "$(cat /tmp/runner-room.pid)" 2>/dev/null || true
@@ -25,6 +43,7 @@ case "$1" in
     show)
         case "$*" in
             *--property=FragmentPath*) printf '/etc/systemd/system/runner-room.service\n' ;;
+            *--property=User*) printf 'runner\n' ;;
             *--property=ActiveState*)
                 if [[ -f /tmp/runner-room.pid ]]; then echo active; else echo inactive; fi ;;
             *) printf 'Id=actions.runner.example.api.service\nLoadState=loaded\nActiveState=active\nSubState=running\n\n' ;;

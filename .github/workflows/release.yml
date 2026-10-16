@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: bash -n install.sh && bash -n uninstall.sh && shellcheck install.sh uninstall.sh
+      - run: bash -n install.sh && bash -n uninstall.sh && bash -n deploy/linux/update-service.sh && shellcheck install.sh uninstall.sh deploy/linux/update-service.sh
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'

@@ -6,3 +6,8 @@ artifacts
 .git
 .vs
 deploy
+!deploy/
+deploy/*
+!deploy/linux/
+deploy/linux/*
+!deploy/linux/update-service.sh

@@ -78,7 +78,11 @@ sudo bash install.sh --runners /srv/actions-runners
 
 ## Updating and configuration
 
-Run the **same install command** again to update. It reapplies the folder, user, and port from those arguments, so keep any custom flags. If startup fails, the installer restores the previous binary, configuration, and service.
+Open **Preferences → Application updates**, choose **Check for updates**, then **Update now** when a newer release is available. The dashboard shows progress and reconnects after its brief restart. UI updates preserve your runner folder, port, service account, login settings, GitHub connections, and recorded history. If the new application fails its startup check, the updater restores the previous release.
+
+Existing installations need to run the **same install command once more** to install the background updater; keep any custom `--user` and `--port` flags. After installing a release containing this feature, future updates can be started from Preferences. The installer remains available for manual updates and reapplies the folder, user, and port supplied in its arguments.
+
+Stop or drain runners controlled by Runner Room before updating the dashboard. Active managed runners and queued management operations block an update so the dashboard restart cannot interrupt their work. Independent GitHub runner services are left alone. With dashboard sign-in enabled, only administrators can install application updates; open LAN installations use the same controls without a login. Docker Compose and Helm installations continue to update through their deployment tools. See [application update details](docs/application-updates.md).
 
 Settings are stored in `/etc/runner-room/runner-room.env`. You can edit them and restart:
 
@@ -179,7 +183,7 @@ Store the token alone in `/etc/runner-room/github.token`, readable only by root 
 
 Alternatively use the `GitHub__Token` environment variable. Never put real tokens in source control. The backend sends the token only to `https://api.github.com`, rejects redirects, and matches registrations by scope and runner ID rather than name. GitHub Enterprise hosts are not supported by this optional integration yet. Requests have bounded concurrency/timeouts; inaccessible registrations, permission errors, and rate limits show Unknown with an explanation. The token is never sent to the browser. One token must cover all configured scopes; scopes it cannot access continue to show local information.
 
-The installer rewrites its environment file on update, so the separate JSON/token files are the recommended persistent configuration.
+Re-running the installer with setup arguments rewrites its environment file; updates started from Preferences preserve it. Separate JSON/token files remain the recommended persistent configuration.
 
 ## System information
 
@@ -302,19 +306,19 @@ Alert state and delivery markers are saved atomically after checks to `alerts.js
 
 ## GitHub integration and access control
 
-The **GitHub & access** workspace tab shows runner API connections, registration IDs, repository/organization scopes, allowed accounts and recent access activity. GitHub API credentials and dashboard sign-in are separate: the existing `GitHub.TokenFile`/`GitHub.Token` provides read-only runner connectivity and labels; OAuth sign-in only identifies a person. No OAuth tokens, client secrets or password hashes are returned to the browser.
+The **GitHub & access** workspace guides you through connecting GitHub, choosing repositories, and syncing workflow activity. It shows workflow runs, attempts, jobs, steps, runner assignments, and runner requirements from workflow files. Progress, saved history, partial imports, and API cooldowns remain visible. See [GitHub synchronization setup](docs/github-sync.md) for token/App permissions, import limits, and optional webhooks. Account settings and the access audit are under advanced details. Credentials stay on the server; OAuth sign-in only identifies a person.
 
-Authentication is **opt-in** for compatibility with existing LAN installations. Set `Access.Enabled` to `true` to protect all monitoring APIs and the dashboard. Invalid enabled configuration fails startup; it never falls back to anonymous access. At least one administrator is required. Accounts and roles are managed in server configuration, with changes applied on restart.
+Authentication is **opt-in** for LAN installations. **Runner management → Set up management** connects GitHub and enables management directly in the UI without requiring a login or server verification code; see [guided setup](docs/management-setup.md). To add dashboard sign-in, set `Access.Enabled` to `true` in server configuration. Invalid enabled configuration fails startup; it never falls back to anonymous access. Enabled authentication requires at least one administrator. Account and role changes use server configuration and apply on restart.
 
-| Access | Viewer | Admin |
-| --- | --- | --- |
-| Runner status, system metrics, job summaries, alert/history views and CSV export | Yes | Yes |
-| Raw diagnostic excerpts and downloads | No | Yes |
-| Request an alert check | No | Yes |
-| Integration/account list and access audit | No | Yes |
-| Runner management, groups and workflow actions (when enabled) | No | Yes |
+| Access | Viewer | Operator | Admin |
+| --- | --- | --- | --- |
+| Monitoring and synchronized workflow history | Yes | Yes | Yes |
+| Refresh/cancel synchronization, inspect workflow requirements, request alert checks | No | Yes | Yes |
+| Start/stop/restart/drain managed runners; track/rerun/cancel workflows | No | Yes | Yes |
+| Choose repositories, account list, access audit, diagnostic logs | No | No | Yes |
+| Register/remove/update/configure runners, groups and pools | No | No | Yes |
 
-Roles apply to the whole dashboard, not individual repositories. With authentication disabled, anyone who can reach the dashboard has administrator capabilities for monitoring; live runner management requires authentication. `/healthz` remains public for the installer and service health checks.
+Roles apply to the whole dashboard, not individual repositories. With authentication disabled, anyone who can reach the dashboard has administrator capabilities, including runner management when enabled. `/healthz` remains public for the installer and service health checks.
 
 ### Local accounts
 
@@ -357,7 +361,7 @@ Create a GitHub OAuth app with your dashboard origin as its homepage and **`http
 
 Use numeric GitHub user IDs (available from `https://api.github.com/users/YOUR_LOGIN`), not usernames. Renaming an account does not transfer its dashboard access to whoever takes the old name. There is no automatic access for repository collaborators or organization members. Local accounts and GitHub accounts can coexist, or either provider can be used alone.
 
-Sign-in uses the [GitHub authorization-code flow with state and PKCE](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps), followed by the fixed GitHub user API to verify identity. The OAuth flow requests no repository permissions. Access is granted only after the returned numeric ID matches the server allowlist. OAuth tokens are discarded after sign-in; they are not saved in cookies or used to manage runners. GitHub Enterprise and GitHub App installation credentials are not included in this version; runner API access continues using the existing token configuration.
+Sign-in uses the [GitHub authorization-code flow with state and PKCE](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps), followed by the fixed GitHub user API to verify identity. The OAuth flow requests no repository permissions. Access is granted only after the returned numeric ID matches the server allowlist. OAuth tokens are discarded after sign-in; they are not saved in cookies or used to manage runners. GitHub App installation credentials are supported separately for synchronization and runner checks; GitHub Enterprise is not yet supported.
 
 Sessions use [ASP.NET Core cookie authentication](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/cookie?view=aspnetcore-9.0), with HttpOnly/SameSite cookies and a fixed 1–24 hour lifetime (default eight hours). Passwords use the framework's salted password hasher with 600,000 iterations. Changing a local password, removing an account or changing its role invalidates its sessions on subsequent requests after restart. Sign-out clears the current browser's cookie. Persistent data-protection keys live in the private `session-keys` directory beneath the state directory, so ordinary updates preserve valid sessions. Keep that directory private and backed up with the server's state; local account and secret files also need restricted filesystem permissions.
 
@@ -403,7 +407,9 @@ Leave the variable unset to build everything on GitHub-hosted runners. Set it on
 
 The **Runner management** tab provides repository and organization registration, imports, batch creation and lifecycle actions, editable labels/settings, process or systemd execution, bounded crash recovery, local pool scaling, GitHub organization groups, verified runner updates, and workflow rerun/cancellation with attempt tracking. The preview simulates these operations and never changes GitHub or runner files.
 
-Live management is **disabled by default** and requires Linux, a non-root runner account, and `Access.Enabled=true`. Only dashboard administrators can call its APIs. Configure authentication first, then merge this into `/etc/runner-room/settings.json` and restart Runner Room:
+Live management is **disabled by default** and requires Linux and a non-root runner account. Open **Runner management → Set up management**, connect a GitHub token, select repositories, and review before saving. Management becomes available immediately after successful setup, with no server verification code, mandatory login, or restart. Existing dashboard sign-in settings are preserved. See [setup, storage, and existing-service permissions](docs/management-setup.md).
+
+When sign-in is enabled, administrators can configure management and operators can perform routine runner and workflow controls. For manual configuration instead, merge this into `/etc/runner-room/settings.json` and restart Runner Room:
 
 ```json
 "Management": {

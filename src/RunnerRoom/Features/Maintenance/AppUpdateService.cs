@@ -66,12 +66,19 @@ public sealed partial class AppUpdateService : BackgroundService
         while (await timer.WaitForNextTickAsync(stoppingToken)) await CheckAsync(stoppingToken);
     }
 
-    internal async Task CheckAsync(CancellationToken cancellationToken = default)
+    internal Task CheckNowAsync(CancellationToken cancellationToken = default) => CheckAsync(cancellationToken, manual: true);
+
+    internal async Task CheckAsync(CancellationToken cancellationToken = default, bool manual = false)
     {
-        if (!options.Enabled || demo || !await gate.WaitAsync(0, cancellationToken)) return;
+        if ((!options.Enabled && !manual) || demo) return;
+        if (manual) await gate.WaitAsync(cancellationToken);
+        else if (!await gate.WaitAsync(0, cancellationToken)) return;
         try
         {
             var attempt = clock.GetUtcNow();
+            // A button click during a scheduled check waits for that result; repeated clicks
+            // reuse the result for thirty seconds instead of consuming GitHub's API quota.
+            if (manual && Current.LastAttemptAt is { } lastAttempt && attempt - lastAttempt < TimeSpan.FromSeconds(30)) return;
             Volatile.Write(ref current, Current with { LastAttemptAt = attempt });
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(requestTimeout);
@@ -162,7 +169,7 @@ public sealed partial class AppUpdateService : BackgroundService
         if (!SemanticVersion.TryParse(latestVersion, out var latest))
             return ("unavailable", null, "The published application version could not be compared.");
         var comparison = installed.CompareTo(latest!);
-        return comparison < 0 ? ("update_available", true, "A newer application release is available. Re-run the installer to update.")
+        return comparison < 0 ? ("update_available", true, "A newer application release is available. Open Preferences to update.")
             : comparison == 0 ? ("up_to_date", false, "The application matches the latest published stable release.")
             : ("ahead", false, "The installed application is newer than the latest published stable release.");
     }

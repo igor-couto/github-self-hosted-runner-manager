@@ -80,6 +80,8 @@ internal static class ManagementChecks
             var services = new ServiceCollection().AddSingleton(new AccessAudit(demoOptions)).BuildServiceProvider();
             var context = new DefaultHttpContext { RequestServices = services, User = new ClaimsPrincipal(new ClaimsIdentity([new(ClaimTypes.NameIdentifier, "local:test")], "test")) };
             using var manager = new RunnerManagement(demoOptions, github, new RunnerMonitor(demoOptions, new GitHubRunnerClient(new HttpClient(), new())));
+            Reject(() => manager.RequestApplicationUpdate(() => true, () => throw new InvalidOperationException("Must not request installation")),
+                "Application update requires managed runners to be drained or stopped first.");
             await manager.StartAsync(default);
             async Task<ManagementOperation> Finish(ManagementOperation op)
             {
@@ -102,6 +104,14 @@ internal static class ManagementChecks
             var cancel = manager.Create(new(new() { Name = "cancelled", Scope = "repo:owner/repo" }), context); manager.Cancel(cancel.Id);
             await Task.Delay(2500);
             check(!manager.CopyState().Runners.Any(r => r.Settings.Name == "cancelled"), "Cancelling queued creation has no runner side effects.");
+            await Finish(manager.Act(new(manager.CopyState().Runners.Select(r => r.Id).ToArray(), "drain"), context));
+            var applicationUpdatePending = true;
+            var updateRequested = false;
+            manager.RequestApplicationUpdate(() => applicationUpdatePending, () => updateRequested = true);
+            check(updateRequested, "Stopped managed runners allow the application update request.");
+            Reject(() => manager.Version(context), "Pending application installation blocks new management operations.");
+            applicationUpdatePending = false;
+            check((await Finish(manager.Version(context))).State == "succeeded", "Management operations resume after the helper publishes a terminal status.");
             await manager.StopAsync(default);
             check(!File.Exists(Path.Combine(root, "management.json")), "Demo management never persists into live management state.");
             using var disabled = new RunnerManagement(new(), github, new RunnerMonitor(new(), new GitHubRunnerClient(new HttpClient(), new())));

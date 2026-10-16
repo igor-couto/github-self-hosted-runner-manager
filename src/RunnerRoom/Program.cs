@@ -60,6 +60,7 @@ builder.Services.AddSingleton<QuotaService>();
 builder.Services.AddHostedService(services => services.GetRequiredService<QuotaService>());
 builder.Services.AddSingleton<AppUpdateService>();
 builder.Services.AddHostedService(services => services.GetRequiredService<AppUpdateService>());
+AppUpdateEndpoints.Configure(builder);
 var app = builder.Build();
 app.Use(async (context, next) =>
 {
@@ -83,6 +84,7 @@ app.MapGet("/api/history/export", (string? from, string? to, string? runner, str
 app.MapGet("/api/alerts", (AlertService alerts) => alerts.Current());
 app.MapGet("/api/quotas", (QuotaService quotas) => quotas.Current).WithMetadata(new AdminAccess());
 app.MapGet("/api/updates", (AppUpdateService updates) => updates.Current);
+AppUpdateEndpoints.Map(app);
 app.MapPost("/api/alerts/check", (HttpRequest request, AlertService alerts) =>
 {
     // JSON-only, same-origin UI action; form posts and cross-origin requests cannot trigger notifications.

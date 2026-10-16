@@ -5,6 +5,7 @@ using System.Threading.Channels;
 
 using RunnerRoom.Configuration;
 using RunnerRoom.Features.Access;
+using RunnerRoom.Features.Maintenance;
 using RunnerRoom.Features.Runners;
 
 namespace RunnerRoom.Features.Management;
@@ -28,12 +29,14 @@ public sealed class RunnerManagement : BackgroundService
     private DateTimeOffset workflowPoll;
     private JsonElement cachedState;
     private volatile bool initialized;
+    private Func<bool> applicationUpdatePending;
     private bool Available => options.Demo || initialized && options.Management.Enabled && warning is null;
     [DllImport("libc")] private static extern uint geteuid();
 
     public RunnerManagement(RunnerOptions options, ManagementGitHub github, RunnerMonitor monitor)
     {
         this.options = options; this.github = github; this.monitor = monitor; runtime = new(options);
+        applicationUpdatePending = options.Demo ? () => false : AppInstallationService.HasPendingInstallation;
         file = Path.Combine(AccessSetup.StateDirectory(options), "management.json");
         if (options.Demo)
         {
@@ -140,6 +143,21 @@ public sealed class RunnerManagement : BackgroundService
             workflows = cachedState.ValueKind == JsonValueKind.Object ? cachedState.GetProperty("workflows") : JsonSerializer.SerializeToElement(Array.Empty<object>()), latest };
     }
     internal ManagementState CopyState() { lock (gate) return JsonSerializer.Deserialize<ManagementState>(JsonSerializer.Serialize(state))!; }
+    internal void RequestApplicationUpdate(Func<bool> pending, Action request)
+    {
+        lock (gate)
+        {
+            if (applicationUpdatePending()) throw new ManagementException("An application update is already pending. Wait for it to finish before requesting another.");
+            if (state.Operations.Any(operation => operation.State is "queued" or "running"))
+                throw new ManagementException("Wait for runner management operations to finish before updating the application.");
+            if (state.Runners.Any(runner => runner.DesiredRunning || runner.State is "running" or "restoring"))
+                throw new ManagementException("Drain or stop your managed runners before updating the application so their jobs can finish safely.");
+            if (!options.Demo && state.Runners.Select(runtime.Read).Any(info => info.ProcessStatus != "stopped" || info.WorkerPid is not null))
+                throw new ManagementException("A managed runner is still running or its process state is unknown. Drain it and confirm it has stopped before updating the application.");
+            request();
+            applicationUpdatePending = pending;
+        }
+    }
     private ManagedRunner Find(string id) => state.Runners.FirstOrDefault(r => r.Id == id) ?? throw new ManagementException("Managed runner not found.");
     private void Allow(string scope) { if (!options.Demo) github.Allow(scope); else ManagementValidation.Scope(scope); }
     private ManagementOperation Enqueue(string action, string target, HttpContext context, Func<CancellationToken, Task> work, string[]? ids = null)
@@ -147,6 +165,8 @@ public sealed class RunnerManagement : BackgroundService
         Require();
         lock (gate)
         {
+            if (applicationUpdatePending())
+                throw new ManagementException("An application update is in progress. Runner management will be available again when it finishes.");
             ids ??= [];
             if (ids.Any(reserved.Contains)) throw new ManagementException("A selected runner already has a queued or running operation.");
             if (state.Operations.Count(o => o.State is "queued" or "running") >= 90) throw new ManagementException("Operation queue is full. Wait for current operations to finish.");
@@ -435,7 +455,7 @@ public sealed class RunnerManagement : BackgroundService
         while (!stoppingToken.IsCancellationRequested)
         {
             // Keep the worker alive so initial setup can enable management without a restart.
-            if (!Available)
+            if (!Available || applicationUpdatePending())
             {
                 try { await Task.Delay(2000, stoppingToken); } catch (OperationCanceledException) { break; }
                 continue;

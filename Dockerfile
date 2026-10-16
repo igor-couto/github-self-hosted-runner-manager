@@ -4,7 +4,8 @@ COPY global.json ./
 COPY src/RunnerRoom/RunnerRoom.csproj ./src/RunnerRoom/
 RUN dotnet restore src/RunnerRoom/RunnerRoom.csproj
 COPY src/RunnerRoom/ ./src/RunnerRoom/
-COPY uninstall.sh LICENSE ./
+COPY install.sh uninstall.sh LICENSE ./
+COPY deploy/linux/update-service.sh ./deploy/linux/
 ARG VERSION=0.0.0-dev
 RUN dotnet publish src/RunnerRoom/RunnerRoom.csproj -c Release -o /app --no-restore -p:Version="$VERSION"
 

@@ -75,6 +75,7 @@ AccessChecks.Run(Check);
 await ManagementChecks.Run(Check);
 await InterfaceChecks.Run(Check);
 await UpdateChecks.Run(Check);
+await InstallationChecks.Run(Check);
 await SyncChecks.Run(Check);
 await CredentialChecks.Run(Check);
 WorkflowChecks.Run(Check);

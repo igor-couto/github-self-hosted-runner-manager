@@ -9,7 +9,10 @@ while (($#)); do
     esac
 done
 case "$url" in
-    */releases/latest) printf '%s' 'https://github.com/igor-couto/github-self-hosted-runner-manager/releases/tag/v0.1.0' ;;
+    */releases/latest)
+        latest=v0.1.0
+        [[ ! -f /tmp/latest-version ]] || latest=$(cat /tmp/latest-version)
+        printf 'https://github.com/igor-couto/github-self-hosted-runner-manager/releases/tag/%s' "$latest" ;;
     */runner-room-linux-x64.tar.gz*) cp "/fixture/${url##*/}" "$output" ;;
     *) exit 2 ;;
 esac

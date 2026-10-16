@@ -7,3 +7,8 @@
 artifacts
 tests
 deploy
+!deploy/
+deploy/*
+!deploy/linux/
+deploy/linux/*
+!deploy/linux/update-service.sh

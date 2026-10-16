@@ -129,7 +129,7 @@
               <p id="app-update-message" class="detail-hint"></p>
               <p id="app-update-checked" class="detail-hint"></p>
               <a id="app-release-link" class="project-link" target="_blank" rel="noopener noreferrer" hidden>View release notes ↗</a>
-              <p class="detail-hint">To update, run your original installer command on the server. Updates are not installed automatically.</p>
+              <p class="detail-hint">Manage updates in Preferences → Application updates.</p>
             </section>
           </div>
           <div class="server-footer"><svg class="icon" aria-hidden="true"><use href="#icon-shield"/></svg>Read-only monitoring</div>
@@ -311,7 +311,15 @@
   <dialog id="preferences-dialog" aria-labelledby="preferences-title">
     <div class="panel-heading"><h2 id="preferences-title">Preferences</h2><button id="preferences-close" type="button">Close ✕</button></div>
     <div class="preferences-body">
-      <p class="detail-hint">Saved in this browser. No credentials or monitoring data are stored in these preferences.</p>
+      <section id="preferences-updates" class="preferences-updates" aria-labelledby="preferences-updates-title">
+        <div class="preferences-updates-heading"><h3 id="preferences-updates-title">Application updates</h3><span id="preferences-update-status" class="app-update-status" role="status">Checking for updates…</span></div>
+        <dl class="preferences-update-versions"><div><dt>Installed version</dt><dd id="preferences-installed-version" data-no-translate>—</dd></div><div><dt>Latest release</dt><dd id="preferences-latest-version" data-no-translate>—</dd></div></dl>
+        <p id="preferences-update-message" class="detail-hint" aria-live="polite"></p>
+        <p id="preferences-update-support" class="detail-hint"></p>
+        <div class="preferences-update-actions"><button id="preferences-update-check" class="secondary-button" type="button" disabled>Check for updates</button><button id="preferences-update-install" class="primary-button" type="button" hidden disabled>Update now</button><button id="preferences-update-reload" class="primary-button" type="button" hidden>Reload dashboard</button></div>
+        <p id="preferences-update-notice" class="detail-hint" hidden>The dashboard will restart briefly and reconnect automatically.</p>
+      </section>
+      <p class="detail-hint">Appearance and layout are saved in this browser. No credentials or monitoring data are stored in these preferences.</p>
       <div class="preference-grid">
         <label>Theme<select id="pref-theme"><option value="dark">Dark</option><option value="light">Light</option><option value="system">System</option><option value="night">Night</option></select></label>
         <label>Language<select id="pref-language"><option value="en">English</option><option value="pt-PT">Português</option></select></label>
