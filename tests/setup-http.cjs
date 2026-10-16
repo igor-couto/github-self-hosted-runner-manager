@@ -1,4 +1,4 @@
-// Runs an isolated authenticated demo: no real tokens, runners, or GitHub requests.
+// Runs isolated authenticated and open-LAN demos: no real tokens, runners, or GitHub requests.
 const {request,chromium} = require('playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const net = require('node:net');
 const crypto = require('node:crypto');
-const {spawn,spawnSync} = require('node:child_process');
+const {spawn} = require('node:child_process');
 
 (async () => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'runner-room-setup-http-'));
@@ -22,22 +22,20 @@ const {spawn,spawnSync} = require('node:child_process');
     const file = path.join(directory,'settings.json');
     await fs.writeFile(file,JSON.stringify({Demo:true,Monitoring:{StateDirectory:directory},Access:{Enabled:true,RequireHttps:false,PublicOrigin:base,LocalUsers:['admin','operator','viewer'].map(role=>({Username:role,Role:role,PasswordHash:hash}))}}));
     const cwd = path.resolve(__dirname,'../src/RunnerRoom');
-    const cliFile=path.join(directory,'cli-settings.json'), cliState=path.join(directory,'cli-state');
-    await fs.writeFile(cliFile,JSON.stringify({Demo:false,Monitoring:{StateDirectory:cliState}}));
-    const generated=spawnSync('dotnet',['bin/Release/net9.0/RunnerRoom.dll','--SettingsFile',cliFile,'--setup-code'],{cwd,encoding:'utf8',windowsHide:true});
-    assert.equal(generated.status,0,'Setup code command must run before starting host services');
-    const code=generated.stdout.trim();assert.match(code,/^[a-f0-9]{48}$/);
-    const codeRecord=await fs.readFile(path.join(cliState,'setup-code.json'),'utf8');assert.ok(!codeRecord.includes(code),'Only a hash of the ownership code is stored');
-    child = spawn('dotnet',['bin/Release/net9.0/RunnerRoom.dll','--SettingsFile',file,'--urls',base],{cwd,stdio:['ignore','pipe','pipe'],windowsHide:true});
-    let output=''; for(const stream of [child.stdout,child.stderr]) stream.on('data',data=>{output=(output+data).slice(-8000);});
-    let ready=false;
-    for(let i=0;i<150;i++) { try {if((await fetch(base+'/healthz')).ok){ready=true;break;}}catch{} await new Promise(resolve=>setTimeout(resolve,100)); }
-    assert.ok(ready,'Demo server did not start: '+output);
+    let output='';
+    async function startServer() {
+      child = spawn('dotnet',['bin/Release/net9.0/RunnerRoom.dll','--SettingsFile',file,'--urls',base],{cwd,stdio:['ignore','pipe','pipe'],windowsHide:true});
+      for(const stream of [child.stdout,child.stderr]) stream.on('data',data=>{output=(output+data).slice(-8000);});
+      let ready=false;
+      for(let i=0;i<150;i++) { try {if((await fetch(base+'/healthz')).ok){ready=true;break;}}catch{} await new Promise(resolve=>setTimeout(resolve,100)); }
+      assert.ok(ready,'Demo server did not start: '+output);
+    }
+    await startServer();
     const anonymous = await request.newContext({baseURL:base}); contexts.push(anonymous);
     const status = await (await anonymous.get('/api/setup/status')).json();
     assert.equal(status.accessEnabled,true); assert.equal(status.demo,true);
     assert.equal((await anonymous.get('/api/setup/config')).status(),401);
-    const payload={token:'never-a-real-token',scopes:['repo:example/project'],origin:base,allowHttp:true};
+    const payload={token:'never-a-real-token',scopes:['repo:example/project']};
     for(const role of ['viewer','operator','admin']) {
       const api = await request.newContext({baseURL:base}); contexts.push(api);
       let session = await (await api.get('/api/access/session')).json();
@@ -74,7 +72,35 @@ const {spawn,spawnSync} = require('node:child_process');
     assert.equal(await page.locator('#setup-restart').isVisible(),false);
     await page.locator('#setup-next').click();await page.getByRole('button',{name:'Preview setup',exact:true}).click();await page.locator('#setup-github').waitFor();
     assert.equal(await page.locator('#setup-restart').isVisible(),false);assert.deepEqual(errors,[]);
-    console.log('PASS: live setup HTTP authentication, roles, CSRF, origin, body limits, no secret persistence, full dashboard preview, mobile sizing and repeat preview.');
+    await page.close();
+    const stopped=new Promise(resolve=>child.once('exit',resolve));child.kill();await stopped;
+    await fs.writeFile(file,JSON.stringify({Demo:true,Monitoring:{StateDirectory:directory},Access:{Enabled:false}}));
+    await startServer();
+    const lan=await request.newContext({baseURL:base});contexts.push(lan);
+    const lanStatus=await (await lan.get('/api/setup/status')).json();
+    assert.equal(lanStatus.accessEnabled,false);assert.equal(lanStatus.available,true);
+    assert.equal(lanStatus.requiresCode,undefined,'No ownership-code requirement remains');
+    assert.equal((await lan.get('/api/setup/config')).status(),200,'LAN setup opens without authentication or a setup code');
+    assert.equal((await lan.post('/api/setup/discover',{data:{}})).status(),200);
+    assert.equal((await lan.post('/api/setup/save',{headers:{Origin:'https://other.example'},data:payload})).status(),403);
+    assert.equal((await lan.post('/api/setup/save',{form:payload})).status(),403);
+    const lanSave=await lan.post('/api/setup/save',{headers:{Origin:base},data:payload});
+    assert.equal(lanSave.status(),200);assert.equal((await lanSave.json()).restartRequired,false);
+    const lanPage=await browser.newPage({viewport:{width:1200,height:950}});
+    lanPage.on('pageerror',e=>errors.push(e.message));
+    await lanPage.goto(base+'/#management');
+    await lanPage.getByRole('button',{name:'Preview setup',exact:true}).click();
+    await lanPage.locator('#setup-github').waitFor();
+    assert.equal(await lanPage.locator('#setup-verify, #setup-account, #setup-code, #setup-password').count(),0);
+    await lanPage.getByRole('button',{name:'Find repositories',exact:true}).click();
+    await lanPage.getByRole('checkbox',{name:'example/activities-api · Private'}).check();
+    await lanPage.locator('#setup-next').click();await lanPage.locator('#setup-next').click();
+    await lanPage.locator('#setup-done').waitFor();
+    assert.equal(await lanPage.locator('#setup-restart').isVisible(),false);
+    await assert.rejects(fs.stat(path.join(directory,'ui-settings.json')),{code:'ENOENT'});
+    assert.deepEqual(errors,[]);
+    assert.ok(!output.includes('never-a-real-token')&&!output.includes(password),'Secrets must not enter logs');
+    console.log('PASS: open-LAN setup without verification/login; existing authentication, roles and CSRF; origin/body validation; no demo persistence; dashboard preview and mobile sizing.');
   } finally {
     if(browser) await browser.close();
     for(const context of contexts) await context.dispose();

@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using RunnerRoom.Configuration;
@@ -11,58 +10,22 @@ using RunnerRoom.Features.Runners;
 
 namespace RunnerRoom.Features.Setup;
 
-// Bootstrap credentials prove access to the server; they never become dashboard credentials.
-internal sealed class SetupService(RunnerOptions options, HttpClient http, TimeProvider? timeProvider = null, string? restriction = null, Func<string[]>? prerequisites = null)
+// Open dashboards can configure management directly. Existing sign-in remains authoritative.
+internal sealed class SetupService(RunnerOptions options, HttpClient http, string? restriction = null, Func<string[]>? prerequisites = null,
+    Action<ManagementOptions>? activate = null)
 {
-    private readonly TimeProvider clock = timeProvider ?? TimeProvider.System;
     private readonly SemaphoreSlim gate = new(1, 1);
     private bool saved;
-    private readonly object attemptsGate = new();
-    private int failedAttempts;
-    private DateTimeOffset attemptWindow;
-    private sealed record SetupCode(string Hash, DateTimeOffset ExpiresAt);
     [DllImport("libc")] private static extern uint geteuid();
     internal static string ConfigurationPath(RunnerOptions options) => Path.Combine(AccessSetup.StateDirectory(options), "ui-settings.json");
-    private static string CodePath(RunnerOptions options) => Path.Combine(AccessSetup.StateDirectory(options), "setup-code.json");
-    internal bool PendingRestart => !options.Demo && (saved || !options.Management.Enabled && File.Exists(ConfigurationPath(options)));
+    internal bool PendingRestart => !options.Demo && !options.Management.Enabled && (saved || File.Exists(ConfigurationPath(options)));
     internal bool Available => !options.Management.Enabled && !PendingRestart && Issues().Length == 0;
 
-    internal static string CreateCode(RunnerOptions options, TimeProvider? timeProvider = null)
-    {
-        if (options.Demo) throw new SetupException("Demo setup does not require a code.");
-        if (options.Management.Enabled || File.Exists(ConfigurationPath(options))) throw new SetupException("Setup is already saved. Restart Runner Room to apply it.");
-        var directory = ManagementValidation.SafeDirectory(AccessSetup.StateDirectory(options));
-        CreatePrivateDirectory(directory);
-        var code = Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
-        WritePrivate(CodePath(options), JsonSerializer.Serialize(new SetupCode(Hash(code), (timeProvider ?? TimeProvider.System).GetUtcNow().AddMinutes(15))));
-        return code;
-    }
-
-    internal bool Authorized(HttpContext context)
-    {
-        if (options.Demo) return !options.Access.Enabled || context.User.Identity?.IsAuthenticated == true && context.User.IsInRole("admin");
-        if (options.Access.Enabled) return context.User.Identity?.IsAuthenticated == true && context.User.IsInRole("admin");
-        if (!Available) return false;
-        var supplied = context.Request.Headers["X-RR-Setup-Code"].ToString();
-        lock (attemptsGate)
-        {
-            var now = clock.GetUtcNow();
-            if (now - attemptWindow >= TimeSpan.FromMinutes(1)) { failedAttempts = 0; attemptWindow = now; }
-            if (failedAttempts >= 30) return false;
-            try
-            {
-                var record = JsonSerializer.Deserialize<SetupCode>(LocalRunnerReader.ReadSmall(CodePath(options), 2048) ?? "null");
-                if (record is not null && record.ExpiresAt > now && record.ExpiresAt <= now.AddMinutes(15) && supplied.Length == 48 &&
-                    CryptographicOperations.FixedTimeEquals(Convert.FromHexString(record.Hash), Convert.FromHexString(Hash(supplied)))) return true;
-            }
-            catch (Exception ex) when (ex is JsonException or FormatException or ArgumentException) { }
-            failedAttempts++;
-            return false;
-        }
-    }
+    internal bool Authorized(HttpContext context) => !options.Access.Enabled ||
+        context.User.Identity?.IsAuthenticated == true && context.User.IsInRole("admin");
 
     internal object Status() => new { available = Available, demo = options.Demo, accessEnabled = options.Access.Enabled,
-        managementEnabled = options.Management.Enabled, pendingRestart = PendingRestart, requiresCode = !options.Demo && !options.Access.Enabled,
+        managementEnabled = options.Management.Enabled, pendingRestart = PendingRestart,
         unavailableReason = Issues().FirstOrDefault() };
 
     internal SetupConfiguration Configuration(string origin) => new(options.Demo, options.Access.Enabled, options.Management.Enabled,
@@ -113,8 +76,6 @@ internal sealed class SetupService(RunnerOptions options, HttpClient http, TimeP
             if (issues.Length > 0) throw new SetupException(issues[0]);
             var scopes = ValidateScopes(input.Scopes);
             if (options.Demo) { saved = true; return new(true, false, "Demo setup completed. No server settings or GitHub registrations were changed."); }
-            var access = options.Access.Enabled ? options.Access : NewAccess(input, currentOrigin);
-            if (!options.Access.Enabled) access.TrustedProxies = options.Access.TrustedProxies;
             var token = ValidateToken(input.Token);
             foreach (var scope in scopes)
             {
@@ -140,15 +101,24 @@ internal sealed class SetupService(RunnerOptions options, HttpClient http, TimeP
             WritePrivate(tokenFile, token, overwrite: false);
             try
             {
-                var json = options.Access.Enabled ? JsonSerializer.Serialize(new { Management = management }) :
-                    JsonSerializer.Serialize(new { Access = access, Management = management });
+                var json = JsonSerializer.Serialize(new { Management = management });
                 WritePrivate(ConfigurationPath(options), json, overwrite: false);
             }
             catch { File.Delete(tokenFile); throw; }
             saved = true;
-            // A persisted overlay invalidates the code even if deletion is prevented by the filesystem.
-            try { File.Delete(CodePath(options)); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
-            return new(true, true, "Settings saved. Restart Runner Room on the server, then sign in to manage runners. Existing runner services have not been changed.");
+            if (activate is not null)
+            {
+                try
+                {
+                    activate(management);
+                    return new(true, false, "Management is ready. You can now create runners or import existing installations.");
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ManagementException)
+                {
+                    return new(true, true, "Settings were saved, but management could not start. Check state-directory permissions and whether another Runner Room instance owns its management state, then restart Runner Room. Existing runner services have not been changed.");
+                }
+            }
+            return new(true, true, "Settings saved. Restart Runner Room to activate management. Existing runner services have not been changed.");
         }
         finally { gate.Release(); }
     }
@@ -159,21 +129,6 @@ internal sealed class SetupService(RunnerOptions options, HttpClient http, TimeP
             throw new SetupException("Choose between 1 and 25 repository or organization scopes.");
         try { return scopes.Select(ManagementValidation.Scope).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(); }
         catch (ManagementException) { throw new SetupException("Use repo:owner/repository or org:organization for allowed scopes."); }
-    }
-
-    internal static AccessOptions NewAccess(SetupSaveRequest input, string currentOrigin)
-    {
-        if (!AccessAccounts.ValidUsername(input.Username)) throw new SetupException("Use 3–64 letters, numbers, dots, underscores or hyphens for your username.");
-        if (input.Password?.Length is not (>= 12 and <= 1024)) throw new SetupException("Use a password between 12 and 1024 characters.");
-        if (!Uri.TryCreate(input.Origin, UriKind.Absolute, out var origin) || origin.Scheme is not ("http" or "https") || origin.AbsolutePath != "/" ||
-            origin.Query.Length != 0 || origin.Fragment.Length != 0 || origin.UserInfo.Length != 0 ||
-            !string.Equals(origin.GetLeftPart(UriPartial.Authority), currentOrigin, StringComparison.OrdinalIgnoreCase))
-            throw new SetupException("Use this dashboard's current address as the public origin. Open the intended address before saving setup.");
-        if (origin.Scheme == "http" && !input.AllowHttp) throw new SetupException("Confirm use of HTTP on your trusted network, or open the dashboard through HTTPS.");
-        var access = new AccessOptions { Enabled = true, RequireHttps = origin.Scheme == "https", PublicOrigin = origin.GetLeftPart(UriPartial.Authority),
-            LocalUsers = [new(input.Username!, AccessAccounts.Hasher.HashPassword(input.Username!, input.Password!), "admin")] };
-        _ = new AccessAccounts(access);
-        return access;
     }
 
     private void RequireAvailable()
@@ -213,7 +168,6 @@ internal sealed class SetupService(RunnerOptions options, HttpClient http, TimeP
         catch (Exception ex) when (ex is HttpRequestException or JsonException || ex is TaskCanceledException && !cancellation.IsCancellationRequested)
         { throw new SetupException("GitHub could not be reached or returned an invalid response. Check the connection and try again."); }
     }
-    private static string Hash(string code) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(code)));
     private static void CreatePrivateDirectory(string path)
     {
         if (OperatingSystem.IsLinux()) Directory.CreateDirectory(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);

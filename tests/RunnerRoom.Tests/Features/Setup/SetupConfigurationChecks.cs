@@ -37,12 +37,12 @@ internal static class SetupConfigurationChecks
             var overridden = SetupConfigurationLoader.Load(config, ["--Management:Enabled", "false"]);
             check(!overridden.Management.Enabled, "Explicit startup overrides remain authoritative after setup.");
             var restricted = new ConfigurationBuilder().AddCommandLine(["--Management:TokenFile", "/private/token"]).Build();
-            check(SetupRestrictions.Find(restricted, true) is { } reason && !reason.Contains("/private/token"), "Externally owned management settings block setup without leaking values.");
+            check(SetupRestrictions.Find(restricted) is { } reason && !reason.Contains("/private/token"), "Externally owned management settings block setup without leaking values.");
             var accessRestricted = new ConfigurationBuilder().AddCommandLine(["--Access:LocalUsers:0:Username", "existing"]).Build();
-            check(SetupRestrictions.Find(accessRestricted, false) is not null && SetupRestrictions.Find(accessRestricted, true) is null,
-                "Existing authenticated accounts are preserved while conflicting bootstrap overrides are blocked.");
+            check(SetupRestrictions.Find(accessRestricted) is null,
+                "Access overrides remain compatible because management setup preserves authentication settings.");
             var proxyConfig = new ConfigurationBuilder().AddCommandLine(["--Access:TrustedProxies:0", "127.0.0.1"]).Build();
-            check(SetupRestrictions.Find(proxyConfig, false) is null, "Trusted proxy configuration remains compatible with initial setup.");
+            check(SetupRestrictions.Find(proxyConfig) is null, "Trusted proxy configuration remains compatible with initial setup.");
             File.WriteAllText(SetupService.ConfigurationPath(initial), "invalid-json");
             try { SetupConfigurationLoader.Load(config, []); check(false, "Invalid setup must fail closed."); }
             catch (InvalidOperationException) { check(true, "Invalid setup fails closed."); }

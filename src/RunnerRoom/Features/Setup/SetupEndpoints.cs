@@ -28,7 +28,7 @@ internal static class SetupEndpoints
             }));
     }
     private static string Origin(HttpContext context) => $"{context.Request.Scheme}://{context.Request.Host}";
-    private static IResult Forbidden() => Results.Json(new { message = "Sign in as an administrator or enter a valid setup code generated on the server." }, statusCode: 403);
+    private static IResult Forbidden() => Results.Json(new { message = "Sign in as an administrator to configure runner management." }, statusCode: 403);
     private static async Task<IResult> Post<T>(HttpContext context, SetupService setup, Func<T, Task<object>> action)
     {
         var request = context.Request;

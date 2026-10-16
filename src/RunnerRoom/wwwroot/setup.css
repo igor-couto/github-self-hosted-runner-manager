@@ -1,3 +1,4 @@
+#management-message { margin:0 0 20px; }
 .setup-callout { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:22px; border:1px solid var(--border); border-radius:6px; background:var(--surface-raised); margin-bottom:20px; }
 .setup-callout h3 { margin:0 0 8px; font-size:16px; }
 .setup-callout p { margin:0; color:var(--secondary); line-height:1.6; max-width:620px; }

@@ -1,6 +1,6 @@
 namespace RunnerRoom.Features.Setup;
 
-internal sealed record SetupSaveRequest(string? Username, string? Password, string? Token, string[]? Scopes, string? Origin, bool AllowHttp = false);
+internal sealed record SetupSaveRequest(string? Token, string[]? Scopes);
 internal sealed record SetupDiscoverRequest(string? Token);
 internal sealed record SetupRepository(string FullName, bool IsPrivate);
 internal sealed record SetupDiscovery(SetupRepository[] Repositories, bool Partial, string Message);

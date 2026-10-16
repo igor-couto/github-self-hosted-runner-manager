@@ -5,12 +5,10 @@ namespace RunnerRoom.Features.Setup;
 
 internal static class SetupRestrictions
 {
-    internal static string? Find(IConfigurationRoot configuration, bool accessEnabled)
+    internal static string? Find(IConfigurationRoot configuration)
     {
         var ownedKeys = configuration.AsEnumerable().Where(entry => entry.Value is not null &&
-            (entry.Key.StartsWith("Management:", StringComparison.OrdinalIgnoreCase) ||
-             !accessEnabled && entry.Key.StartsWith("Access:", StringComparison.OrdinalIgnoreCase) &&
-             !entry.Key.StartsWith("Access:TrustedProxies:", StringComparison.OrdinalIgnoreCase))).Select(entry => entry.Key);
+            entry.Key.StartsWith("Management:", StringComparison.OrdinalIgnoreCase)).Select(entry => entry.Key);
         foreach (var key in ownedKeys)
         {
             // Ask the last applicable provider, just as the configuration binder does.

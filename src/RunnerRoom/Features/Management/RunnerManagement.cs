@@ -27,7 +27,8 @@ public sealed class RunnerManagement : BackgroundService
     private RunnerRelease? latest;
     private DateTimeOffset workflowPoll;
     private JsonElement cachedState;
-    private bool Available => options.Demo || options.Management.Enabled && warning is null;
+    private volatile bool initialized;
+    private bool Available => options.Demo || initialized && options.Management.Enabled && warning is null;
     [DllImport("libc")] private static extern uint geteuid();
 
     public RunnerManagement(RunnerOptions options, ManagementGitHub github, RunnerMonitor monitor)
@@ -45,7 +46,38 @@ public sealed class RunnerManagement : BackgroundService
             return;
         }
         if (!options.Management.Enabled) return;
-        if (!OperatingSystem.IsLinux() || !options.Access.Enabled || geteuid() == 0) throw new InvalidOperationException("Runner management requires Linux, Access.Enabled and a non-root runner account.");
+        Initialize();
+    }
+
+    // Used only for initial UI setup. Existing managed installations are not reconfigured live.
+    internal void EnableFromSetup(ManagementOptions settings)
+    {
+        lock (gate)
+        {
+            if (options.Demo || options.Management.Enabled || initialized)
+                throw new ManagementException("Runner management is already configured.");
+            var previous = options.Management;
+            options.Management = settings;
+            try
+            {
+                if (!settings.Enabled) throw new ManagementException("The saved management configuration is disabled.");
+                Initialize();
+                if (!initialized) throw new ManagementException(warning ?? "Management could not start.");
+                ManagementSetup.AddDiscoveryRoot(options);
+            }
+            catch
+            {
+                initialized = false;
+                ownership?.Dispose(); ownership = null;
+                options.Management = previous;
+                throw;
+            }
+        }
+    }
+
+    private void Initialize()
+    {
+        if (!OperatingSystem.IsLinux() || geteuid() == 0) throw new InvalidOperationException("Runner management requires Linux and a non-root runner account.");
         if (string.IsNullOrWhiteSpace(options.Management.RootDirectory)) throw new InvalidOperationException("Set Management.RootDirectory to a dedicated writable directory.");
         options.Management.RootDirectory = ManagementValidation.SafeDirectory(options.Management.RootDirectory);
         if (options.Management.RootDirectory is "/" or "/home" or "/etc" or "/usr" or "/var" || options.Management.MaximumRunners is < 1 or > 500 ||
@@ -77,6 +109,8 @@ public sealed class RunnerManagement : BackgroundService
                 else if (runner.DesiredRunning && runner.State == "running") runner.State = "restoring";
             }
             Save();
+            warning = null;
+            initialized = true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ManagementException or NullReferenceException)
         { warning = "Management state could not be locked, validated or saved. Original state is preserved; fix permissions or restore its backup before restarting."; }
@@ -94,7 +128,7 @@ public sealed class RunnerManagement : BackgroundService
     private void Persist() { lock (gate) Save(); }
     private void Require()
     {
-        if (!Available) throw new ManagementException(warning ?? "Management is disabled. Configure Management and enable dashboard authentication on the server.");
+        if (!Available) throw new ManagementException(warning ?? "Management is disabled. Set up management in the dashboard to create or control runners.");
     }
     public object Snapshot()
     {
@@ -116,7 +150,7 @@ public sealed class RunnerManagement : BackgroundService
             ids ??= [];
             if (ids.Any(reserved.Contains)) throw new ManagementException("A selected runner already has a queued or running operation.");
             if (state.Operations.Count(o => o.State is "queued" or "running") >= 90) throw new ManagementException("Operation queue is full. Wait for current operations to finish.");
-            var op = new ManagementOperation { Action = action, Target = target, Actor = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "demo" };
+            var op = new ManagementOperation { Action = action, Target = target, Actor = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? (options.Demo ? "demo" : "lan") };
             state.Operations = state.Operations.Where(o => o.State is "queued" or "running").Concat(state.Operations.Where(o => o.State is not ("queued" or "running")).TakeLast(390)).Append(op).ToList();
             Save(); foreach (var id in ids) reserved.Add(id);
             queue.Writer.TryWrite((op, async token => { try { await work(token); } finally { lock (gate) foreach (var id in ids) reserved.Remove(id); } }));
@@ -398,9 +432,14 @@ public sealed class RunnerManagement : BackgroundService
     }
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        if (!Available) return;
         while (!stoppingToken.IsCancellationRequested)
         {
+            // Keep the worker alive so initial setup can enable management without a restart.
+            if (!Available)
+            {
+                try { await Task.Delay(2000, stoppingToken); } catch (OperationCanceledException) { break; }
+                continue;
+            }
             if (queue.Reader.TryRead(out var item))
             {
                 using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);

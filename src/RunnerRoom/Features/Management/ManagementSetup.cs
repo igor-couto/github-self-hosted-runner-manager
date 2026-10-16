@@ -15,6 +15,10 @@ internal static class ManagementSetup
         builder.Services.AddSingleton<RunnerManagement>();
         builder.Services.AddHostedService(s => s.GetRequiredService<RunnerManagement>());
         // Also discover new installations for monitoring, history and alerts.
+        AddDiscoveryRoot(options);
+    }
+    internal static void AddDiscoveryRoot(RunnerOptions options)
+    {
         if (options.Management.Enabled && options.Management.RootDirectory is { } root)
             options.RunnersRoots = (options.RunnersRoots.Length > 0 ? options.RunnersRoots : options.RunnersRoot is { } single ? [single] : []).Append(root).Distinct().ToArray();
     }
