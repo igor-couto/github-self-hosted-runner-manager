@@ -21,6 +21,7 @@
   --warning-bg: #3e3424;
   --track: #344452;
   --shadow: #10182024;
+  --github-logo: url('/images/github/GitHub_Invertocat_White_Clearspace.svg');
   font-family: Inter, "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 14px;
   font-synthesis: none;
@@ -50,6 +51,7 @@
   --warning-bg: #fff4de;
   --track: #e1e8f0;
   --shadow: #324a6809;
+  --github-logo: url('/images/github/GitHub_Invertocat_Black_Clearspace.svg');
 }
 * { box-sizing: border-box; }
 .application-info { border-top:1px solid var(--divider); margin-top:20px; padding-top:16px; }
@@ -66,6 +68,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 [hidden] { display: none !important; }
 .icon-definitions { position: absolute; width: 0; height: 0; overflow: hidden; }
 .icon { width: 18px; height: 18px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+/* Official GitHub assets retain their colors, proportions and built-in clear space. */
+.github-mark { display: inline-block; width: 28px; height: 28px; flex: 0 0 auto; background: var(--github-logo) center / contain no-repeat; }
+.github-heading { display: flex; align-items: center; gap: 8px; }
 button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 8px 13px; border: 1px solid var(--border); border-radius: 4px; color: var(--secondary); background: var(--surface-raised); font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
 button:hover { color: var(--text); border-color: var(--muted); }
 button:disabled { opacity: .6; cursor: wait; }
@@ -90,6 +95,7 @@ button:disabled { opacity: .6; cursor: wait; }
 .workspace-tab[aria-selected="true"] { color: var(--blue-text); border-bottom-color: var(--blue); }
 .workspace-tab:focus-visible { outline-offset: -4px; }
 .workspace-tab .icon { width: 14px; height: 14px; }
+.workspace-tab .github-mark { width: 22px; height: 22px; }
 .workspace-tab { flex-shrink: 0; }
 .access-session { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--secondary); margin-bottom: 20px; font-size: 12px; }
 .login-page { display: grid; min-height: 100vh; place-items: center; padding: 24px; }
@@ -98,7 +104,7 @@ button:disabled { opacity: .6; cursor: wait; }
 .login-card form { display: grid; gap: 18px; margin-top: 24px; }
 .login-card label { display: grid; gap: 8px; color: var(--secondary); font-size: 12px; }
 .login-card input { width: 100%; min-width: 0; padding: 12px; color: var(--text); border: 1px solid var(--border); border-radius: 4px; background: var(--surface-inset); }
-.login-github { display: block; text-align: center; padding: 12px; margin-top: 24px; background: var(--surface-raised); border: 1px solid var(--border); border-radius: 4px; color: var(--text); text-decoration: none; }
+.login-github { display: flex; align-items: center; justify-content: center; gap: 8px; text-align: center; padding: 12px; margin-top: 24px; background: var(--surface-raised); border: 1px solid var(--border); border-radius: 4px; color: var(--text); text-decoration: none; }
 #workspace-integration h2 { margin-top: 8px; }
 #integration-audit .monitor-table-wrap { max-height: 400px; overflow: auto; }
 .connection { display: flex; align-items: center; color: var(--muted); font-size: 11px; }
@@ -108,6 +114,12 @@ button:disabled { opacity: .6; cursor: wait; }
 .dot.unknown { background: var(--warning); }
 
 main { max-width: 1640px; margin: 0 auto; padding: 30px 36px 40px; }
+.app-footer { max-width: 1640px; margin: 0 auto; padding: 0 36px 24px; display: flex; justify-content: flex-end; }
+.repository-link { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; color: var(--secondary); font-size: 11px; text-decoration: none; }
+.repository-link:hover { color: var(--text); text-decoration: underline; }
+.repository-link .github-mark { width: 24px; height: 24px; }
+:root[data-display="tv"] .app-footer { display: none; }
+@media (max-width: 650px) { .app-footer { padding-inline: 16px; } }
 .page-heading { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 24px; }
 h1 { margin: 0; font-size: 27px; line-height: 1.25; letter-spacing: -.7px; font-weight: 650; }
 .page-heading p { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }

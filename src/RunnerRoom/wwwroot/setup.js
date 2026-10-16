@@ -7,7 +7,7 @@
   // Static markup only. Repository names and server responses are rendered as text below.
   dialog.innerHTML = `<div class="panel-heading"><h2 id="setup-title">Set up runner management</h2><button id="setup-close" type="button" aria-label="Close management setup">Close ✕</button></div>
     <div class="setup-body"><p id="setup-progress" class="setup-progress"></p><p id="setup-error" role="alert" hidden></p>
-    <section id="setup-github" hidden><h3>Connect GitHub</h3><p id="setup-token-hint">Create a fine-grained token for the repositories you want to manage. Give it <strong>Administration: read and write</strong> to register runners, and <strong>Actions: read and write</strong> for workflow controls.</p>
+    <section id="setup-github" hidden><h3 class="github-heading"><span class="github-mark" aria-hidden="true"></span>Connect GitHub</h3><p id="setup-token-hint">Create a fine-grained token for the repositories you want to manage. Give it <strong>Administration: read and write</strong> to register runners, and <strong>Actions: read and write</strong> for workflow controls.</p>
     <p id="setup-token-link"><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">Create a GitHub token ↗</a></p>
     <label id="setup-token-label">GitHub management token<input id="setup-token" type="password" autocomplete="off" spellcheck="false"></label>
     <p id="setup-secret-hint" class="setup-hint">Stored securely on your server. The token is never saved in browser storage. This is separate from the read-only synchronization connection.</p>
