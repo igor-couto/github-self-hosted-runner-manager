@@ -124,7 +124,7 @@ ingress:
       hosts: [runners.example.com]
 ```
 
-Access is open by default, matching the native dashboard. Configure the existing [sign-in and access controls](../README.md) before exposing it to untrusted clients. With TLS termination, set `Access.PublicOrigin`, keep `Access.RequireHttps=true`, and allow the exact ingress proxy IPs in `Access.TrustedProxies`. The application does not accept CIDR ranges there. If proxy IPs change, the allowlist must be updated. Local HTTP-only sign-in needs `RequireHttps=false`. `/healthz` remains available to probes when sign-in is enabled.
+Access is open by default, matching the native dashboard. Configure the existing [sign-in and access controls](access-control.md) before exposing it to untrusted clients. With TLS termination, set `Access.PublicOrigin`, keep `Access.RequireHttps=true`, and allow the exact ingress proxy IPs in `Access.TrustedProxies`. The application does not accept CIDR ranges there. If proxy IPs change, the allowlist must be updated. Local HTTP-only sign-in needs `RequireHttps=false`. `/healthz` remains available to probes when sign-in is enabled.
 
 ### Storage, upgrades and removal
 
@@ -153,4 +153,4 @@ Implementation references: [Compose service configuration](https://docs.docker.c
 
 ## Validation
 
-`node tests/deployment.cjs` requires Node 18+, Docker and Compose 2.24.4+. It lints/renders Helm variants using a pinned Helm container, builds the dashboard and native test fixture, and tests Compose health, real process visibility, static assets, read-only mounts and state preservation. It uses disposable containers/volumes and no GitHub credentials. Kubernetes installation, ingress routing, storage provisioning and physical host sensor visibility still need validation on the target cluster/server.
+`node tests/deployment.cjs` requires Node 18+, Docker and Compose 2.24.4+. It lints/renders Helm variants using a pinned Helm container, builds the dashboard and native test fixture, and tests Compose health, real process visibility, static assets, read-only mounts and state preservation. It verifies the production host PID configuration separately; process-status checks share a disposable PID namespace so the CI host's own GitHub runners cannot affect the results. It uses disposable containers/volumes and no GitHub credentials. Kubernetes installation, ingress routing, storage provisioning and physical host sensor visibility still need validation on the target cluster/server.

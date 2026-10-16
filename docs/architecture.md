@@ -42,6 +42,7 @@ tests/
 docs/                                Architecture notes and README screenshots
 deploy/compose/                      Linux and demo Compose deployments
 deploy/helm/runner-room/              Helm chart, values and Kubernetes templates
+deploy/linux/                        Native systemd update helper
 .github/workflows/                   Continuous integration and release packaging
 Dockerfile                           Main application image, built from the repository root
 install.sh / uninstall.sh            Linux installation and removal scripts
@@ -82,4 +83,4 @@ dotnet publish src/RunnerRoom/RunnerRoom.csproj -c Release -r linux-x64 --self-c
 
 Select a project explicitly for `dotnet run` and `dotnet publish`: the solution contains multiple applications, and the optional tray application targets Windows. SDK file discovery is scoped to each project directory, so the server does not need exclusions for tests or the tray source. Each project has its own ignored `bin/` and `obj/` output directories.
 
-Build Docker images from the repository root with `docker build -t runner-room .`. The main Dockerfile copies the server project from `src/RunnerRoom/`. Linux management tests build the test project; installer tests consume a published Linux server package. The server project includes the repository's `LICENSE` and `uninstall.sh` as linked publish content. Release packages retain the same application executable, uninstall command and `wwwroot` assets; source organization does not change the installed layout.
+Build Docker images from the repository root with `docker build -t runner-room .`. The main Dockerfile copies the server project from `src/RunnerRoom/`. Linux management tests build the test project; installer tests consume a published Linux server package. The server project includes the repository's `LICENSE`, `install.sh`, `uninstall.sh`, and native update helper as linked publish content. Release packages retain the application executable and `wwwroot` assets, together with the scripts needed to maintain native installations. Application update endpoints request the separate systemd updater through its fixed inbox; the web process does not execute privileged installation commands.
